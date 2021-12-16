@@ -1,0 +1,9 @@
+apiVersion: fhir.imaware.com/v1alpha1
+kind: FhirStore
+metadata:
+  name: ethan-test-fhir
+  namespace: ethan-test
+spec:
+  datasetID: demo-dataset
+  fhirStoreID: ethan-test-data
+

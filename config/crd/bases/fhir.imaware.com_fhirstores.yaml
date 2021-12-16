@@ -1,0 +1,74 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: fhirstores.fhir.imaware.com
+spec:
+  group: fhir.imaware.com
+  names:
+    kind: FhirStore
+    listKind: FhirStoreList
+    plural: fhirstores
+    singular: fhirstore
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: FhirStore is the Schema for the fhirstores API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: FhirStoreSpec defines the desired state of FhirStore
+            properties:
+              datasetID:
+                description: datasetID is the name of the dataset the fhirstore will
+                  be put in
+                type: string
+              fhirStoreID:
+                description: fhirStoreID is the name that the fhir store will be called
+                type: string
+            required:
+            - datasetID
+            - fhirStoreID
+            type: object
+          status:
+            description: FhirStoreStatus defines the observed state of FhirStore
+            properties:
+              Message:
+                type: string
+              Status:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                type: string
+            required:
+            - Message
+            - Status
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
