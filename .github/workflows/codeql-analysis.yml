@@ -1,0 +1,21 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+  schedule:
+    - cron: '35 17 * * 5'
+
+jobs:
+  analyze:
+    uses: imaware/workflows/.github/workflows/codeql-analysis.yaml@main
+    with:
+      languages: "[\"go\"]"
+    secrets:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+      JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
