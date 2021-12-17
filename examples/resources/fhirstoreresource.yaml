@@ -1,0 +1,77 @@
+apiVersion: fhir.imaware.com/v1alpha1
+kind: FhirResource
+metadata:
+  name: ethan-test-fhir-re
+  namespace: ethan-test
+spec:
+  selector:
+    name: ethan-test-fhir
+  resourceType: ObservationDefinition
+  representation: >
+    {
+        "resourceType": "ObservationDefinition",
+        "id": "788075ad-1f44-4b72-8642-6a2af6c8b1da",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],  
+        "permittedDataType": ["string"],
+        "quantitativeDetails": {
+          "unit": {
+            "coding": [
+              {
+                "system": "http://unitsofmeasure.org",
+                "code": "ng/mL",
+                "display": "ng/mL"
+              }
+            ],
+            "text": "nanogram per milliliter"
+          }
+        },
+        "qualifiedInterval": [
+          {
+            "category": "reference",
+            "range": {
+              "low": {
+                "value": 10
+              },
+              "high": {
+                "value": 250
+              }
+            },
+            "context": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/referencerange-meaning",
+                  "code": "normal",
+                  "display": "Normal Range"
+                }
+              ]
+            }
+          }
+        ],
+        "preferredReportName": "Ferritin",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2276-4",
+              "display": "Ferritin SerPl-mCnc"
+            },
+            {
+              "system": "https://usspecialtylabs.com",
+              "code": "9652",
+              "display": "Ferritin"
+            }
+          ],
+          "text": "Ferritin [Mass/volume] in Serum or Plasma"
+        }
+    }
+
+

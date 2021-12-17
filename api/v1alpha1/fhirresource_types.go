@@ -23,19 +23,31 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// FhirResourceSpecFhirStoreSelector defines the FhirStore that this resource should apply to
+type FhirResourceSpecFhirStoreSelector struct {
+	// The FhirStore resource name to select for the resource
+	Name string `json:"name"`
+}
+
 // FhirResourceSpec defines the desired state of FhirResource
 type FhirResourceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of FhirResource. Edit fhirresource_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Type this points to the type of the FHIR resource such as ObservationDefinition
+	ResourceType string `json:"resourceType"`
+	// The representation of the FHIR resource in JSON format
+	Representation string `json:"representation"`
+	// The FhirStore that the resource will be applied to by the selector
+	Selector FhirResourceSpecFhirStoreSelector `json:"selector"`
 }
 
 // FhirResourceStatus defines the observed state of FhirResource
 type FhirResourceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	Status  string `json:"Status"`
+	Message string `json:"Message"`
 }
 
 //+kubebuilder:object:root=true

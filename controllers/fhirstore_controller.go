@@ -32,8 +32,8 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("fhirstore_controller.go")
-	config *api.ConfigVars
+	logger          = ctrl.Log.WithName("fhirstore_controller.go")
+	configFhirStore *api.ConfigVars
 )
 
 // FhirStoreReconciler reconciles a FhirStore object
@@ -66,25 +66,25 @@ const FHISTORE_FINALIZER = "fhir.imaware.com/finalizer"
 func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// Get all valuable metadata for object
 	fhirStore := &fhirv1alpha1.FhirStore{}
-	getError := r.Get(context.TODO(), req.NamespacedName, fhirStore)
-	if getError != nil {
-		if errors.IsNotFound(getError) {
+	err := r.Get(context.TODO(), req.NamespacedName, fhirStore)
+	if err != nil {
+		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			logger.Info("Fhirstore resource not found.")
+			logger.V(1).Info("Fhirstore resource not found.")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		logger.Error(getError, "Failed to get Fhirstore")
-		return ctrl.Result{}, getError
+		logger.V(1).Error(err, "Failed to get Fhirstore")
+		return ctrl.Result{}, err
 	}
-	datasetGetCall, err := api.BuildDatasetGetCall(config.GCPProject, config.GCPLocation, fhirStore.Spec.DatasetID)
+	datasetGetCall, err := api.BuildDatasetGetCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID)
 	if err != nil {
 		logger.Error(err, "Failed to build Dataset get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 		return ctrl.Result{}, nil
 	}
-	fhirStoreGetCall, err := api.BuildFHIRStoreGetCall(config.GCPProject, config.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
+	fhirStoreGetCall, err := api.BuildFHIRStoreGetCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
 	if err != nil {
 		logger.Error(err, "Failed to build Fhir store get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 		return ctrl.Result{}, nil
@@ -93,11 +93,10 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// indicated by the deletion timestamp being set.
 	isFhirStoreMarkedToBeDeleted := fhirStore.GetDeletionTimestamp() != nil
 	if isFhirStoreMarkedToBeDeleted {
-		fhirStoreDeleteCall, err := api.BuildFHIRStoreDeleteCall(config.GCPProject, config.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
-		r.Status().Update(ctx, fhirStore)
+		fhirStoreDeleteCall, err := api.BuildFHIRStoreDeleteCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
 		if err != nil {
 			logger.Error(err, "Failed to build Fhir store delete call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, err
 		}
 		if controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
 			// Run finalization logic for fhirstore finalizaer. If the
@@ -111,7 +110,7 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 			// Remove fhirstore finalizer. Once all finalizers have been
 			// removed, the object will be deleted.
-			err = removeFinalizer(fhirStore, r, ctx)
+			err = removeFhirStoreFinalizer(fhirStore, r, ctx)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -119,12 +118,12 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 	// Add finalizer for this CR
-	err = addFinalizer(fhirStore, r, ctx)
+	err = addFhirStoreFinalizer(fhirStore, r, ctx)
 	if err != nil {
 		return ctrl.Result{}, nil
 	}
 	logger.Info("Checking if Fhirstore should be created", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-	fhirStoreCreateCall, err := api.BuildFHIRStoreCreateCall(config.GCPProject, config.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
+	fhirStoreCreateCall, err := api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
 	if err != nil {
 		logger.Error(err, "Failed to build Fhir store create call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 	}
@@ -140,7 +139,7 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FhirStoreReconciler) SetupWithManager(mgr ctrl.Manager, conf *api.ConfigVars) error {
-	config = conf
+	configFhirStore = conf
 	logger.V(1).Info("Starting reconcile loop for fhirstore_controller.go")
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&fhirv1alpha1.FhirStore{}).
@@ -151,7 +150,7 @@ func (r *FhirStoreReconciler) SetupWithManager(mgr ctrl.Manager, conf *api.Confi
 //   finalizers:
 //  - fhir.imaware.com/finalizer
 // This allows for full cleanup of the fhirstore and any other dependencies
-func addFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx context.Context) error {
+func addFhirStoreFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx context.Context) error {
 	if !controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
 		logger.V(1).Info(fmt.Sprintf("Adding finalizer to resource %v", fhirStore.Name))
 		controllerutil.AddFinalizer(fhirStore, FHISTORE_FINALIZER)
@@ -171,7 +170,7 @@ func addFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx con
 //   finalizers:
 //  - fhir.imaware.com/finalizer
 // This allows for full removal of the resource from the kubernetes ETCD
-func removeFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx context.Context) error {
+func removeFhirStoreFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx context.Context) error {
 	logger.V(1).Info(fmt.Sprintf("Removing finalizer from resource %v", fhirStore.Name))
 	controllerutil.RemoveFinalizer(fhirStore, FHISTORE_FINALIZER)
 	err := r.Update(ctx, fhirStore)

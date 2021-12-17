@@ -30,7 +30,7 @@ func ReadAndOrDeleteFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGe
 		return err
 	}
 	if !exists {
-		logger.Info(fmt.Sprintf("Fhirstore %v does not exist skipping delete", fhirStore.Spec.FhirStoreID))
+		logger.Info(fmt.Sprintf("Fhirstore %v does not exist skipping delete for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 		return nil
 	}
 	// means fhir store does not exist create it
@@ -55,7 +55,7 @@ func ReadAndOrCreateFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGe
 	if err != nil {
 		return false, err
 	} else if fhirStorExists {
-		logger.Info(fmt.Sprintf("Fhirstore %v exists skipping create", fhirStore.Spec.FhirStoreID))
+		logger.Info(fmt.Sprintf("Fhirstore %v exists skipping create for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 		fhirStore.Status.Status = CREATED
 		fhirStore.Status.Message = FHIRStoreCreatedStatus(fhirStore.Spec.FhirStoreID)
 		return false, nil
@@ -75,18 +75,18 @@ func createFhirStore(fhirStoreCreateCall FHRIStoreClientCreateCall, fhirStore *f
 	if err != nil {
 		gcpErr, ok := err.(*googleapi.Error)
 		if ok {
-			logger.V(1).Error(gcpErr, "GCP Healthcare API create fhirstor error")
+			logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to create fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 			fhirStore.Status.Status = FAILED
 			fhirStore.Status.Message = FHIRStoreCreateFailedStatus(fhirStore.Spec.FhirStoreID)
-			return fmt.Errorf("Failed to create FHIR store")
+			return fmt.Errorf(fmt.Sprintf("Failed to create fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 		} else {
 			fhirStore.Status.Status = FAILED
 			fhirStore.Status.Message = FHIRStoreCreateFailedStatus(fhirStore.Spec.FhirStoreID)
-			return fmt.Errorf("Create fhirstore error: %v", err)
+			return fmt.Errorf(fmt.Sprintf("Create fhirstore %v internal error for resource %v in namespace %v: %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace, err))
 		}
 		// FHIR store was created re-queue the event to make sure we can obtain it from API
 	} else {
-		logger.Info(fmt.Sprintf("FHIR store created %v in dataset %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID))
+		logger.Info(fmt.Sprintf("FHIR store created %v in dataset %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 		fhirStore.Status.Status = CREATING
 		fhirStore.Status.Message = FHIRStoreCreatingStatus(fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
 		return nil
@@ -100,18 +100,18 @@ func deleteFhirStore(fhirStoreDeleteCall FHIRStoreClientDeleteCall, fhirStore *f
 	if err != nil {
 		gcpErr, ok := err.(*googleapi.Error)
 		if ok {
-			logger.V(1).Error(gcpErr, "GCP Healthcare API delete fhirstor error")
+			logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to delete fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 			fhirStore.Status.Status = FAILED
 			fhirStore.Status.Message = FHIRStoreDeleteFailedStatus(fhirStore.Spec.FhirStoreID)
 			return fmt.Errorf("Failed to delete FHIR store")
 		} else {
 			fhirStore.Status.Status = FAILED
 			fhirStore.Status.Message = FHIRStoreDeleteFailedStatus(fhirStore.Spec.FhirStoreID)
-			return fmt.Errorf("Delete fhirstore error: %v", err)
+			return fmt.Errorf("Delete fhirstore internal error: %v", err)
 		}
 		// FHIR store was created re-queue the event to make sure we can obtain it from API
 	} else {
-		logger.Info(fmt.Sprintf("FHIR store deleted %v in dataset %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID))
+		logger.Info(fmt.Sprintf("FHIR store deleted %v in dataset %v for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 		return nil
 	}
 }
@@ -125,20 +125,20 @@ func datasetExists(datasetGetCall DatastoreClientGetCall, fhirStore *fhirv1alpha
 		if ok {
 			code := gcpErr.Code
 			if code == DATSET_ERROR_NOT_FOUND {
-				logger.V(1).Error(gcpErr, "Failed to get datastore this can be due to either bad permissions or resource does not exist")
+				logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to get datastore %v for resource %v in namesapce %v. This can be due to either bad permissions or resource does not exist", fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 				fhirStore.Status.Status = FAILED
-				fhirStore.Status.Message = DatasetNotFoundOrPermissionsInvalidStatus(fhirStore.Spec.DatasetID)
+				fhirStore.Status.Message = DatasetNotFoundOrPermissionsInvalidStatus(fhirStore.Spec.DatasetID, gcpErr)
 				return fmt.Errorf("Invalid credentials or datastore does not exist")
 			} else {
-				logger.V(1).Error(err, "GCP Healthcare Dataset API get error")
+				logger.V(1).Error(err, "Get dataset call failed")
 				fhirStore.Status.Status = FAILED
-				fhirStore.Status.Message = GetInternalError()
-				return fmt.Errorf("GCP Healthcare Dataset GET API error")
+				fhirStore.Status.Message = GetInternalError(err.Error())
+				return fmt.Errorf("Get dataset call failed")
 			}
 		} else {
 			fhirStore.Status.Status = FAILED
-			fhirStore.Status.Message = GetInternalError()
-			return fmt.Errorf("Get dataset error: %v", err)
+			fhirStore.Status.Message = GetInternalError(err.Error())
+			return fmt.Errorf("Get dataset internal error: %v", err)
 		}
 	} else {
 		logger.V(1).Info(fmt.Sprintf("Found dataset with ID %v", fhirStore.Spec.DatasetID))
@@ -156,21 +156,21 @@ func fhirStoreExists(fhirstoreGetCall FHIRStoreClientGetCall, fhirStore *fhirv1a
 			code := gcpErr.Code
 			// 403 can mean either bad credentials or it does not exist, try to create
 			if code == FHIR_STORE_ERROR_NOT_FOUND {
-				logger.Info(fmt.Sprintf("Fhirstore %v not found", fhirStore.Spec.FhirStoreID))
+				logger.V(1).Info(fmt.Sprintf("Fhirstore %v not found", fhirStore.Spec.FhirStoreID))
 				return false, nil
 			} else {
 				logger.V(1).Error(err, "GCP Healthcare FHIR GET api error")
 				fhirStore.Status.Status = FAILED
-				fhirStore.Status.Message = GetInternalError()
+				fhirStore.Status.Message = GetInternalError(err.Error())
 				return false, fmt.Errorf("GCP Healthcare FHIR GET API error")
 			}
 		} else {
 			fhirStore.Status.Status = FAILED
-			fhirStore.Status.Message = GetInternalError()
+			fhirStore.Status.Message = GetInternalError(err.Error())
 			return false, fmt.Errorf("Get fhirstore error: %v", err)
 		}
 	} else {
-		logger.Info(fmt.Sprintf("Fhirstore %v exists", fhirStore.Spec.FhirStoreID))
+		logger.V(1).Info(fmt.Sprintf("Fhirstore %v exists", fhirStore.Spec.FhirStoreID))
 		return true, nil
 	}
 }

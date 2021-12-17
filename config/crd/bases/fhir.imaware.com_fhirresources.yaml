@@ -36,13 +36,41 @@ spec:
           spec:
             description: FhirResourceSpec defines the desired state of FhirResource
             properties:
-              foo:
-                description: Foo is an example field of FhirResource. Edit fhirresource_types.go
-                  to remove/update
+              representation:
+                description: The representation of the FHIR resource in JSON format
                 type: string
+              resourceType:
+                description: Type this points to the type of the FHIR resource such
+                  as ObservationDefinition
+                type: string
+              selector:
+                description: The FhirStore that the resource will be applied to by
+                  the selector
+                properties:
+                  name:
+                    description: The FhirStore resource name to select for the resource
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - representation
+            - resourceType
+            - selector
             type: object
           status:
             description: FhirResourceStatus defines the observed state of FhirResource
+            properties:
+              Message:
+                type: string
+              Status:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                type: string
+            required:
+            - Message
+            - Status
             type: object
         type: object
     served: true

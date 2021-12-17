@@ -21,8 +21,11 @@ func Test_readandor_create_failed_get_dataset_request(t *testing.T) {
 	var fhirStore = &v1alpha1.FhirStore{}
 	var expected = false
 	actual, err := ReadAndOrCreateFHIRStore(mockDatasetBadGetCall, nil, nil, fhirStore)
-	if err == nil && actual != expected {
-		t.Errorf("returned no error and boolean %t, wanted an error and boolean %t", actual, expected)
+	if err == nil {
+		t.Error("returned no error, wanted an error")
+	}
+	if actual != expected {
+		t.Errorf("expected boolean %v, got boolean %v", expected, actual)
 	}
 }
 
@@ -30,8 +33,11 @@ func Test_readandor_create_create_fhirstore_fhir_request(t *testing.T) {
 	var fhirStore = &v1alpha1.FhirStore{}
 	var expected = true
 	actual, err := ReadAndOrCreateFHIRStore(mockDatasetGoodGetCall, mockFhirBadGetCall, mockFhirGoodCreateCall, fhirStore)
-	if err != nil && actual != expected {
-		t.Errorf("returned error and boolean %t, but wanted no error and boolean %t", actual, expected)
+	if err != nil {
+		t.Errorf("returned error %v, but wanted no error", err.Error())
+	}
+	if actual != expected {
+		t.Errorf("expected boolean %v, got boolean %v", expected, actual)
 	}
 }
 
@@ -39,8 +45,11 @@ func Test_readandor_create_failed_create_fhirstore_fhir_request(t *testing.T) {
 	var fhirStore = &v1alpha1.FhirStore{}
 	var expected = false
 	actual, err := ReadAndOrCreateFHIRStore(mockDatasetGoodGetCall, mockFhirBadGetCall, mockFhirBadCreateCall, fhirStore)
-	if err == nil && actual != expected {
-		t.Errorf("returned no error and boolean %t, wanted no error and boolean %t", actual, expected)
+	if err == nil {
+		t.Error("returned no error, wanted an error")
+	}
+	if actual != expected {
+		t.Errorf("expected boolean %v, got boolean %v", expected, actual)
 	}
 }
 
@@ -56,6 +65,6 @@ func Test_readandor_delete_delete_fhirstor_fhir_request(t *testing.T) {
 	var fhirStore = &v1alpha1.FhirStore{}
 	err := ReadAndOrDeleteFHIRStore(mockDatasetGoodGetCall, mockFhirGoodCreateCall, mockFhirGoodDeleteCall, fhirStore)
 	if err != nil {
-		t.Error("error returned and wanted no error")
+		t.Errorf("error returned %v and wanted no error", err.Error())
 	}
 }

@@ -1,0 +1,22 @@
+apiVersion: fhir.imaware.com/v1alpha1
+kind: FhirResource
+metadata:
+  name: ethan-test-fhir-activity
+  namespace: ethan-test
+spec:
+  selector:
+    name: ethan-test-fhir
+  resourceType: ActivityDefinition
+  representation: >
+    {
+      "resourceType": "ActivityDefinition",
+      "id": "0062fbbc-e09b-4819-80b4-9c02724d1f11",
+      "title": "Ferritin",
+      "status": "active",
+      "observationResultRequirement": [
+        {
+          "reference": "ObservationDefinition/788075ad-1f44-4b72-8642-6a2af6c8b1da",
+          "display": "Ferritin"
+        }
+      ]
+    }

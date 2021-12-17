@@ -28,7 +28,7 @@ spec:
             value: imaware-test
         command:
         - /manager
-        image: gcr.io/imaware-test/fhir-manager:1.0.0
+        image: gcr.io/imaware-test/fhir-manager:1.0.1
         imagePullPolicy: Always
         name: manager
         securityContext:
