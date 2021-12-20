@@ -1,0 +1,12 @@
+apiVersion: fhir.imaware.com/v1alpha1
+kind: FhirStore
+metadata:
+  name: test-fhir
+  namespace: test
+spec:
+  datasetID: test-dataset
+  fhirStoreID: test-fhirstore
+
+
+
+
