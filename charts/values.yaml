@@ -6,7 +6,7 @@
 replicaCount: 1
 
 # -- What namesapce to deploy namespaced resources too
-namespace: ethan-test
+namespace: ""
 
 # -- To create the PSP or not
 pspCreate: true 
@@ -28,8 +28,8 @@ fullnameOverride: ""
 iamServiceAccount:
   # -- If running in a cluster with Anthos config connector will create GCP IAM resources
   create: true
-  # -- GCP project
-  project: imaware-test
+  # -- (REQUIRED) GCP project
+  project: ""
   polices:
   # -- (REQUIRED) role for the fhir operator to edit fhir resources in the project. Project must be set to the GCP project in use.
   - role: roles/healthcare.fhirResourceEditor

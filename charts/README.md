@@ -18,13 +18,13 @@ A Helm chart for Kubernetes
 | iamServiceAccount.polices[0] | object | `{"project":"","role":"roles/healthcare.fhirResourceEditor"}` | (REQUIRED) role for the fhir operator to edit fhir resources in the project. Project must be set to the GCP project in use. |
 | iamServiceAccount.polices[1] | object | `{"project":"","role":"roles/healthcare.fhirStoreAdmin"}` | (REQUIRED) role for the fhir operator to edit manage fhir stores in the project. Project must be set to the GCP project in use. |
 | iamServiceAccount.polices[2] | object | `{"role":"roles/iam.workloadIdentityUser"}` | (REQUIRED) role for the fhir operator use workload identity |
-| iamServiceAccount.project | string | `"imaware-test"` | GCP project |
+| iamServiceAccount.project | string | `""` | (REQUIRED) GCP project |
 | image.pullPolicy | string | `"Always"` | ImagePullPolicy settings |
 | image.repository | string | `"gcr.io/imaware-test/fhir-operator"` | Repository hosting the image |
 | image.tag | string | `"1.0.0"` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Image pull secrets for the container registry |
 | nameOverride | string | `""` |  |
-| namespace | string | `"ethan-test"` | What namesapce to deploy namespaced resources too |
+| namespace | string | `""` | What namesapce to deploy namespaced resources too |
 | nodeSelector | object | `{}` | Which node pods should run on |
 | podAnnotations | object | `{}` | Additional pod annotations |
 | podSecurityContext.runAsNonRoot | bool | `true` | Allow pods to run as root |
