@@ -1,0 +1,77 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "fhir-operator.fullname" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "fhir-operator.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "fhir-operator.serviceAccountName" . }}
+  namespace: {{ .Values.namespace }}
+---
+{{- if .Values.pspCreate -}}
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  annotations:
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: runtime/default
+    apparmor.security.beta.kubernetes.io/defaultProfileName: runtime/default
+    kubernetes.io/description: >-
+      This policy grants the minimum amount of privilege necessary to run
+      non-privileged kube-system pods. This policy is not intended for use
+      outside of kube-system, and may include further restrictions in the
+      future.
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default,docker/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
+  labels:
+    app.kubernetes.io/instance: fhir-manager
+  name: {{ include "fhir-operator.fullname" . }}.psp
+spec:
+  allowPrivilegeEscalation: false
+  allowedCapabilities: []
+  fsGroup:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - emptyDir
+    - csi
+    - configMap
+    - secret
+    - projected
+    - downwardAPI
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "fhir-operator.fullname" . }}
+  namespace: {{ .Values.namespace }}
+rules:
+  - apiGroups:
+      - policy
+    resourceNames:
+      - {{ include "fhir-operator.fullname" . }}.psp
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "fhir-operator.fullname" . }}
+  namespace: {{ .Values.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name:  {{ include "fhir-operator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "fhir-operator.serviceAccountName" . }}
+{{- end }}

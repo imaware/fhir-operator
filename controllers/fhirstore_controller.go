@@ -21,11 +21,13 @@ import (
 	"fmt"
 
 	"github.com/imaware/fhir-operator/api"
+	"google.golang.org/api/healthcare/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
@@ -64,85 +66,68 @@ const FHISTORE_FINALIZER = "fhir.imaware.com/finalizer"
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var result = ctrl.Result{}
+	var err error
 	// Get all valuable metadata for object
 	fhirStore := &fhirv1alpha1.FhirStore{}
-	err := r.Get(context.TODO(), req.NamespacedName, fhirStore)
+	err = r.Get(context.TODO(), req.NamespacedName, fhirStore)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			logger.V(1).Info("Fhirstore resource not found.")
-			return ctrl.Result{}, nil
+			// set err to nil to not requeue the request
+			err = nil
+		} else {
+			logger.V(1).Error(err, "Failed to get Fhirstore")
 		}
-		// Error reading the object - requeue the request.
-		logger.V(1).Error(err, "Failed to get Fhirstore")
-		return ctrl.Result{}, err
-	}
-	datasetGetCall, err := api.BuildDatasetGetCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID)
-	if err != nil {
-		logger.Error(err, "Failed to build Dataset get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-		return ctrl.Result{}, nil
-	}
-	fhirStoreGetCall, err := api.BuildFHIRStoreGetCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
-	if err != nil {
-		logger.Error(err, "Failed to build Fhir store get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-		return ctrl.Result{}, nil
-	}
-	// Check if the FhirStore instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isFhirStoreMarkedToBeDeleted := fhirStore.GetDeletionTimestamp() != nil
-	if isFhirStoreMarkedToBeDeleted {
-		fhirStoreDeleteCall, err := api.BuildFHIRStoreDeleteCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
-		if err != nil {
-			logger.Error(err, "Failed to build Fhir store delete call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, err
-		}
-		if controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
-			// Run finalization logic for fhirstore finalizaer. If the
-			// finalization logic fails, don't remove the finalizer so
-			// that we can retry during the next reconciliation.
-			err := api.ReadAndOrDeleteFHIRStore(datasetGetCall, fhirStoreGetCall, fhirStoreDeleteCall, fhirStore)
-			r.Status().Update(ctx, fhirStore)
-			if err != nil {
-				logger.Error(err, "Something went wrong during FHIR store creation", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-				return ctrl.Result{}, nil
-			}
-			// Remove fhirstore finalizer. Once all finalizers have been
-			// removed, the object will be deleted.
-			err = removeFhirStoreFinalizer(fhirStore, r, ctx)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
-	}
-	// Add finalizer for this CR
-	err = addFhirStoreFinalizer(fhirStore, r, ctx)
-	if err != nil {
-		return ctrl.Result{}, nil
-	}
-	logger.Info("Checking if Fhirstore should be created", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-	fhirStoreCreateCall, err := api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
-	if err != nil {
-		logger.Error(err, "Failed to build Fhir store create call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-	}
-	enqueue, err := api.ReadAndOrCreateFHIRStore(datasetGetCall, fhirStoreGetCall, fhirStoreCreateCall, fhirStore)
-	r.Status().Update(ctx, fhirStore)
-	if err != nil {
-		logger.Error(err, "Something went wrong during FHIR store creation", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-		return ctrl.Result{Requeue: enqueue}, err
 	} else {
-		return ctrl.Result{Requeue: enqueue}, nil
+		var datasetGetCall *healthcare.ProjectsLocationsDatasetsGetCall
+		datasetGetCall, err = api.BuildDatasetGetCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID)
+		if err != nil {
+			logger.V(1).Error(err, "Failed to build Dataset get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		}
+		var fhirStoreGetCall *healthcare.ProjectsLocationsDatasetsFhirStoresGetCall
+		fhirStoreGetCall, err = api.BuildFHIRStoreGetCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
+		if err != nil {
+			logger.V(1).Error(err, "Failed to build Fhir store get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		}
+		if datasetGetCall != nil && fhirStoreGetCall != nil {
+			// Check if the FhirStore instance is marked to be deleted, which is
+			// indicated by the deletion timestamp being set.
+			isFhirStoreMarkedToBeDeleted := fhirStore.GetDeletionTimestamp() != nil
+			if isFhirStoreMarkedToBeDeleted {
+				result, err = deleteFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall)
+				if err == nil && controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
+					err = removeFhirStoreFinalizer(fhirStore, r, ctx)
+				}
+			} else {
+				// Add finalizer for this CR
+				err = addFhirStoreFinalizer(fhirStore, r, ctx)
+				if err == nil {
+					var fhirStoreCreateCall *healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall
+					fhirStoreCreateCall, err = api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
+					if err != nil {
+						logger.V(1).Error(err, "Failed to build Fhir store create call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+					} else {
+						result, err = createFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall, fhirStoreCreateCall)
+					}
+				}
+			}
+		}
+		r.Status().Update(ctx, fhirStore)
 	}
+	return result, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FhirStoreReconciler) SetupWithManager(mgr ctrl.Manager, conf *api.ConfigVars) error {
 	configFhirStore = conf
+	pred := predicate.GenerationChangedPredicate{}
 	logger.V(1).Info("Starting reconcile loop for fhirstore_controller.go")
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&fhirv1alpha1.FhirStore{}).
+		For(&fhirv1alpha1.FhirStore{}).WithEventFilter(pred).
 		Complete(r)
 }
 
@@ -180,4 +165,59 @@ func removeFhirStoreFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconci
 	}
 	logger.V(1).Info(fmt.Sprintf("Removed finalizer from resource %v", fhirStore.Name))
 	return nil
+}
+
+func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall, fhirStoreCreateCall api.FHRIStoreClientCreateCall) (ctrl.Result, error) {
+	logger.Info("Checking if Fhirstore should be created", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+	err := api.ReadAndOrCreateFHIRStore(datasetGetCall, fhirStoreGetCall, fhirStoreCreateCall, fhirStore)
+	if err != nil {
+		logger.Error(err, "Something went wrong during FHIR store creation", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		return ctrl.Result{}, err
+	}
+	// create IAM policy if needed
+	if len(fhirStore.Spec.Auth) > 0 {
+		fhirStoreIAMPolicyGetCall, err := api.BuildFhirStoreGetIAMPolicyRequest(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
+		if err != nil {
+			logger.V(1).Error(err, "Failed to build Fhir store IAM get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			return ctrl.Result{}, err
+		}
+		// Get the policy to make sure we dont miss anything in updating or creating policy
+		policy, err := api.ReadFHIRStoreIAMPolicy(fhirStoreIAMPolicyGetCall, fhirStore)
+		if err != nil {
+			logger.Error(err, "Something went wrong during FHIR store IAM policy read", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			return ctrl.Result{}, nil
+		}
+		policy.Bindings = api.GenerateIAMPolicyBindings(fhirStore.Spec.Auth)
+		fhirStoreIAMPolicyCreateOrUpdateCall, err := api.BuildFhirStoreUpdateOrCreateIAMPolicyRequest(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, policy)
+		if err != nil {
+			logger.V(1).Error(err, "Failed to build Fhir store IAM update call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			return ctrl.Result{}, err
+		}
+		// create or update the policy for the fhir store
+		err = api.CreateOrUpdateFHIRStoreIAMPolicy(fhirStoreIAMPolicyCreateOrUpdateCall, fhirStore)
+		if err != nil {
+			logger.Error(err, "Something went wrong during FHIR store IAM policy create or update", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			return ctrl.Result{}, nil
+		}
+	}
+	// if we are at this point the fhir store is up and running
+	logger.Info(fmt.Sprintf("Fhirstore %v created for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+	fhirStore.Status.Status = api.CREATED
+	fhirStore.Status.Message = api.FHIRStoreCreatedStatus(fhirStore.Spec.FhirStoreID)
+	return ctrl.Result{}, nil
+}
+
+func deleteFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall) (ctrl.Result, error) {
+	fhirStoreDeleteCall, err := api.BuildFHIRStoreDeleteCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
+	if err != nil {
+		logger.Error(err, "Failed to build Fhir store delete call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		return ctrl.Result{}, err
+	}
+	err = api.ReadAndOrDeleteFHIRStore(fhirStoreGetCall, fhirStoreDeleteCall, fhirStore)
+	//r.Status().Update(ctx, fhirStore)
+	if err != nil {
+		logger.Error(err, "Something went wrong during FHIR store delete", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
 }

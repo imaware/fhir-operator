@@ -26,6 +26,8 @@ spec:
             value: us-central1
           - name: GCP_PROJECT
             value: imaware-test
+          - name: DEBUG_ENABLED
+            value: "true"
         command:
         - /manager
         image: gcr.io/imaware-test/fhir-manager:1.0.1

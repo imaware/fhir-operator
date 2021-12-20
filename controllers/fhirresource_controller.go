@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/imaware/fhir-operator/api"
 	"github.com/imaware/fhir-operator/api/v1alpha1"
@@ -46,6 +47,8 @@ type FhirResourceReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// All interfaces for mocking purposes
+
 //+kubebuilder:rbac:groups=fhir.imaware.com,resources=fhirresources,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=fhir.imaware.com,resources=fhirresources/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=fhir.imaware.com,resources=fhirresources/finalizers,verbs=update
@@ -60,6 +63,7 @@ type FhirResourceReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *FhirResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var result ctrl.Result = ctrl.Result{}
 	fhirResource := &v1alpha1.FhirResource{}
 	err := r.Get(context.TODO(), req.NamespacedName, fhirResource)
 	if err != nil {
@@ -67,102 +71,65 @@ func (r *FhirResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			logger.V(1).Info("FhirResource resource not found.")
-			return ctrl.Result{}, nil
+			fhirResourceLogger.V(1).Info("FhirResource resource not found.")
+			// set err to nil to not requeue the request
+			err = nil
+		} else {
+			// Error reading the object - requeue the request.
+			fhirResourceLogger.V(1).Error(err, "Failed to get FhirResource")
 		}
-		// Error reading the object - requeue the request.
-		logger.V(1).Error(err, "Failed to get FhirResource")
-		return ctrl.Result{}, err
-	}
-	// make sure the fhirstore exists and is in CREATED state
-	fhirStoreRequest := ctrl.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      fhirResource.Spec.Selector.Name,
-			Namespace: fhirResource.Namespace,
-		},
-	}
-	//get fhirresource id
-	fhirResourceID, err := api.GetFHIRIResourceID(fhirResource.Spec.Representation)
-	if err != nil {
-		logger.V(1).Error(err, "Failed to get resourceID", "resource", fhirResource.Name, "namespace", fhirResource.Namespace)
-		fhirResource.Status.Status = api.PENDING
-		fhirResource.Status.Message = api.FHIRStoreResourceCreateOrUpdateFailedStatus(fhirResource.Spec.Selector.Name, err.Error())
-		r.Status().Update(ctx, fhirResource)
-		return ctrl.Result{}, nil
-	}
-	fhirStore := getNamespacedFhirStore(fhirStoreRequest, r, ctx)
-	// Check if the FhirStore instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isFhirResourceMarkedToBeDeleted := fhirResource.GetDeletionTimestamp() != nil
-	if isFhirResourceMarkedToBeDeleted {
-		// If the fhirStore is empty or not ready there is no API calls needed to delete the fhir resource
-		if fhirStore == nil || fhirStore.Status.Status != api.CREATED {
-			err = removeFhirResourceFinalizer(fhirResource, r, ctx)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, err
-		}
-		// This means the fhirstore is in the CREATED state remove resource from store
-		fhirResourceDeleteCall, err := api.BuildFHIRStoreResourceDeleteCall(configFhirResource.GCPProject, configFhirResource.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirResource.Spec.ResourceType, fhirResourceID)
-		if err != nil {
-			fhirResourceLogger.V(1).Error(err, "Something went wrong building delete call", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
-			return ctrl.Result{}, err
-		}
-		fhirResourceGetCall, err := api.BuildFHIRStoreResourceGetCall(configFhirResource.GCPProject, configFhirResource.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirResource.Spec.ResourceType, fhirResourceID)
-		if err != nil {
-			fhirResourceLogger.V(1).Error(err, "Something went wrong building get call", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
-			return ctrl.Result{}, err
-		}
-		err = api.DeleteAndReadFHIRStoreResource(fhirResourceDeleteCall, fhirResourceGetCall, fhirResource)
-		r.Status().Update(ctx, fhirResource)
-		if err != nil {
-			fhirResourceLogger.V(1).Error(err, "Something went wrong during delete", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
-			return ctrl.Result{}, nil
-		}
-		err = removeFhirResourceFinalizer(fhirResource, r, ctx)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
-	}
-	err = addFhirResourceFinalizer(fhirResource, r, ctx)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	// means the resource can not be added due to the store not being fully up
-	if fhirStore == nil || fhirStore.Status.Status != api.CREATED {
-		// requeue the event but wait 3 seconds
-		fhirResource.Status.Status = api.PENDING
-		fhirResource.Status.Message = api.FHIRStoreResourcePendingOnFhirStoreStatus(fhirResource.Spec.Selector.Name)
-		r.Status().Update(ctx, fhirResource)
-		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
-	}
-	// fhir store is ready add the resource
-	fhirResourceCreateOrUpdateCall, err := api.BuildFHIRStoreResourceUpdateCall(configFhirResource.GCPProject, configFhirResource.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirResource.Spec.Representation, fhirResource.Spec.ResourceType, fhirResourceID)
-	if err != nil {
-		fhirResourceLogger.V(1).Error(err, "Something went wrong building update call", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
-		return ctrl.Result{}, nil
-	}
-	enqueu, err := api.CreateOrUpdateFHIRResource(fhirResourceCreateOrUpdateCall, fhirResource)
-	r.Status().Update(ctx, fhirResource)
-	if err != nil {
-		fhirResourceLogger.Error(err, "Something went wrong during creation", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
-		r.Status().Update(ctx, fhirResource)
-		return ctrl.Result{}, nil
-	} else if !enqueu {
-		return ctrl.Result{}, nil
 	} else {
-		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
+		// make sure the fhirstore exists and is in CREATED state
+		fhirStoreRequest := ctrl.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      fhirResource.Spec.Selector.Name,
+				Namespace: fhirResource.Namespace,
+			},
+		}
+		//get fhirresource id
+		var fhirResourceID string
+		fhirResourceID, err = api.GetFHIRIResourceID(fhirResource.Spec.Representation)
+		fhirStore := getNamespacedFhirStore(fhirStoreRequest, r, ctx)
+		if err != nil {
+			logger.V(1).Error(err, "Failed to get resourceID", "resource", fhirResource.Name, "namespace", fhirResource.Namespace)
+			fhirResource.Status.Status = api.FAILED
+			fhirResource.Status.Message = api.FHIRStoreResourceCreateOrUpdateFailedStatus(fhirResource.Spec.Selector.Name, err.Error())
+			// set to nil as we do not want to requeue this event
+			err = nil
+		} else {
+			// Check if the fhir resource instance is marked to be deleted, which is
+			// indicated by the deletion timestamp being set.
+			isFhirResourceMarkedToBeDeleted := fhirResource.GetDeletionTimestamp() != nil
+			if isFhirResourceMarkedToBeDeleted {
+				// we can safely delete the resource as the resource will not be present in the cloud
+				if fhirStore == nil || fhirStore.Status.Status != api.CREATED {
+					err = removeFhirResourceFinalizer(fhirResource, r, ctx)
+				} else {
+					result, err = deleteFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
+					if err == nil {
+						err = removeFhirResourceFinalizer(fhirResource, r, ctx)
+					}
+				}
+				// not marked to be deleted so it is either a create or update request
+			} else {
+				err = addFhirResourceFinalizer(fhirResource, r, ctx)
+				if err == nil {
+					result, err = createOrUpdateFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
+				}
+			}
+		}
+		r.Status().Update(ctx, fhirResource)
 	}
+	return result, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FhirResourceReconciler) SetupWithManager(mgr ctrl.Manager, conf *api.ConfigVars) error {
 	logger.V(1).Info("Starting reconcile loop for fhirresource_controller.go")
 	configFhirResource = conf
+	pred := predicate.GenerationChangedPredicate{}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&fhirv1alpha1.FhirResource{}).
+		For(&fhirv1alpha1.FhirResource{}).WithEventFilter(pred).
 		Complete(r)
 }
 
@@ -176,7 +143,7 @@ func addFhirResourceFinalizer(fhirResource *v1alpha1.FhirResource, r *FhirResour
 		controllerutil.AddFinalizer(fhirResource, FHISTORE_FINALIZER)
 		err := r.Update(ctx, fhirResource)
 		if err != nil {
-			fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirstore resource %v", fhirResource.Name))
+			fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirresource resource %v", fhirResource.Name))
 			return err
 		}
 		fhirResourceLogger.V(1).Info(fmt.Sprintf("Added finalizer to resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
@@ -195,8 +162,12 @@ func removeFhirResourceFinalizer(fhirResource *v1alpha1.FhirResource, r *FhirRes
 	controllerutil.RemoveFinalizer(fhirResource, FHISTORE_FINALIZER)
 	err := r.Update(ctx, fhirResource)
 	if err != nil {
-		fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to update finalizer for fhirstore resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
-		return err
+		if errors.IsNotFound(err) {
+			return nil
+		} else {
+			fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to update finalizer for fhir resource resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
+			return err
+		}
 	}
 	fhirResourceLogger.V(1).Info(fmt.Sprintf("Removed finalizer from resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
 	return nil
@@ -220,4 +191,60 @@ func getNamespacedFhirStore(fhirStoreRequest ctrl.Request, r *FhirResourceReconc
 	}
 	fhirResourceLogger.V(1).Info(fmt.Sprintf("FhirStore %v resource in namespace %v found %v status", fhirStoreRequest.Name, fhirStoreRequest.Namespace, fhirStore.Status.Status))
 	return fhirStore
+}
+
+// Control loop for deleting a fhir resource from the healthcare
+// flow control:
+// 	if fhir store is not created or does not exist
+//		remove the resource from kubernetes
+// 	else
+//		delete the resource in fhir store and make sure it is deleted with a get and remove resource from kubernetes
+func deleteFhirResourceLoop(fhirStore *v1alpha1.FhirStore, fhirResource *v1alpha1.FhirResource, fhirResourceID string) (ctrl.Result, error) {
+	fhirResourceDeleteCall, err := api.BuildFHIRStoreResourceDeleteCall(configFhirResource.GCPProject, configFhirResource.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirResource.Spec.ResourceType, fhirResourceID)
+	if err != nil {
+		fhirResourceLogger.V(1).Error(err, "Something went wrong building delete call", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
+		return ctrl.Result{}, err
+	}
+	fhirResourceGetCall, err := api.BuildFHIRStoreResourceGetCall(configFhirResource.GCPProject, configFhirResource.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirResource.Spec.ResourceType, fhirResourceID)
+	if err != nil {
+		fhirResourceLogger.V(1).Error(err, "Something went wrong building get call", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
+		return ctrl.Result{}, err
+	}
+	err = api.DeleteAndReadFHIRStoreResource(fhirResourceDeleteCall, fhirResourceGetCall, fhirResource)
+	if err != nil {
+		fhirResourceLogger.V(1).Error(err, "Something went wrong during delete", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
+}
+
+// Control loop for creating or updating a fhir resource from the healthcare
+// flow control:
+// 	if fhir store is not created or does not exist
+//		requeue the event to wait for store to be creted
+// 	else
+//		create or update the resource
+func createOrUpdateFhirResourceLoop(fhirStore *v1alpha1.FhirStore, fhirResource *v1alpha1.FhirResource, fhirResourceID string) (ctrl.Result, error) {
+	// means the resource can not be added due to the store not being fully up
+	if fhirStore == nil || fhirStore.Status.Status != api.CREATED {
+		// requeue the event but wait 3 seconds
+		fhirResource.Status.Status = api.PENDING
+		fhirResource.Status.Message = api.FHIRStoreResourcePendingOnFhirStoreStatus(fhirResource.Spec.Selector.Name)
+		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
+	}
+	// fhir store is ready add the resource
+	fhirResourceCreateOrUpdateCall, err := api.BuildFHIRStoreResourceUpdateCall(configFhirResource.GCPProject, configFhirResource.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirResource.Spec.Representation, fhirResource.Spec.ResourceType, fhirResourceID)
+	if err != nil {
+		fhirResourceLogger.V(1).Error(err, "Something went wrong building update call", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
+		return ctrl.Result{}, nil
+	}
+	enqueu, err := api.CreateOrUpdateFHIRResource(fhirResourceCreateOrUpdateCall, fhirResource)
+	if err != nil {
+		fhirResourceLogger.Error(err, "Something went wrong during creation", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
+		return ctrl.Result{}, nil
+	} else if !enqueu {
+		return ctrl.Result{}, nil
+	} else {
+		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
+	}
 }

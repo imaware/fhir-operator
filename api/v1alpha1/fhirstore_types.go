@@ -32,6 +32,22 @@ type FhirStoreSpec struct {
 	FhirStoreID string `json:"fhirStoreID"`
 	// datasetID is the name of the dataset the fhirstore will be put in
 	DatasetID string `json:"datasetID"`
+	// auth defines who has access to the fhir API. Key is the role and each key has a members which contains a list of members
+	Auth map[string]FhirStoreSpecAuth `json:"auth,omitempty"`
+	// options Options to be enabled on the fhir store
+	Options FhirStoreSpecOptions `json:"options,omitempty"`
+}
+
+// FhirStoreSpecAuthSpec defines what service accounts can talk to the fhir API
+type FhirStoreSpecAuth struct {
+	Members []string `json:"members"`
+}
+
+type FhirStoreSpecOptions struct {
+	// preventDelete option to prevent the fhir store from being deleted if set to true. This will also prevent the resource from being deleted unless removed
+	PreventDelete bool `json:"preventDelete"`
+	// enableUpdateCreate enables or disables the create on update option for the fhir store
+	EnableUpdateCreate bool `json:"enableUpdateCreate"`
 }
 
 // FhirStoreStatus defines the observed state of FhirStore

@@ -6,4 +6,11 @@ metadata:
 spec:
   datasetID: demo-dataset
   fhirStoreID: ethan-test-data
+  auth:
+    roles/viewer:
+      members:
+      - "serviceAccount:ethan-local@imaware-test.iam.gserviceaccount.com"
+
+
+
 

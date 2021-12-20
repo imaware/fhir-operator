@@ -3,10 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 
 	"google.golang.org/api/googleapi"
@@ -33,6 +30,13 @@ type FHIRStoreClientDeleteCall interface {
 	Do(opts ...googleapi.CallOption) (*healthcare.Empty, error)
 }
 
+type FHIRStoreClientIAMPolicyGetCall interface {
+	Do(opts ...googleapi.CallOption) (*healthcare.Policy, error)
+}
+
+type FHIRStoreClientIAMPolicyCreateOrUpdateCall interface {
+	Do(opts ...googleapi.CallOption) (*healthcare.Policy, error)
+}
 type FHIRStoreResourceClientUpdateCall interface {
 	Do(opts ...googleapi.CallOption) (*http.Response, error)
 }
@@ -97,6 +101,29 @@ func BuildFHIRStoreResourceGetCall(projectID string, location string, datasetID 
 	return call, nil
 }
 
+func BuildFhirStoreGetIAMPolicyRequest(projectID string, location string, datasetID string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresGetIamPolicyCall, error) {
+	healthcareService, err := healthcare.NewService(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("Get client error: %v", err)
+	}
+	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores
+	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
+	return fhirService.GetIamPolicy(name), nil
+}
+
+func BuildFhirStoreUpdateOrCreateIAMPolicyRequest(projectID string, location string, datasetID string, fhirStoreID string, fhirStorePolicy *healthcare.Policy) (*healthcare.ProjectsLocationsDatasetsFhirStoresSetIamPolicyCall, error) {
+	healthcareService, err := healthcare.NewService(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("Get client error: %v", err)
+	}
+	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores
+	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
+	req := &healthcare.SetIamPolicyRequest{
+		Policy: fhirStorePolicy,
+	}
+	return fhirService.SetIamPolicy(name, req), nil
+}
+
 func BuildFHIRStoreDeleteCall(projectID string, location string, datasetID string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresDeleteCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
@@ -134,6 +161,10 @@ func CreateFHIRStore(fhirseStoreCreateCall FHRIStoreClientCreateCall) (*healthca
 	return fhirseStoreCreateCall.Do()
 }
 
+func UpdateFHIRStoreIAMPolicy(fhirStoreCreateOrUpdateIAMPolicyCall FHIRStoreClientIAMPolicyCreateOrUpdateCall) (*healthcare.Policy, error) {
+	return fhirStoreCreateOrUpdateIAMPolicyCall.Do()
+}
+
 func CreateDataset(datastoreCreateCall DatastoreClientCreateCall) (*healthcare.Operation, error) {
 	return datastoreCreateCall.Do()
 }
@@ -144,6 +175,10 @@ func GetDataset(datastoreGetCall DatastoreClientGetCall) (*healthcare.Dataset, e
 
 func GetFHIRStore(fhirStoreGetCall FHIRStoreClientGetCall) (*healthcare.FhirStore, error) {
 	return fhirStoreGetCall.Do()
+}
+
+func GetFHIRStoreIAMPolicy(fhirStoreGetIAMPolicyCall FHIRStoreClientIAMPolicyGetCall) (*healthcare.Policy, error) {
+	return fhirStoreGetIAMPolicyCall.Do()
 }
 
 func DeleteFHIRStore(fhirStoreDeleteCall FHIRStoreClientDeleteCall) (*healthcare.Empty, error) {
@@ -160,103 +195,4 @@ func DeleteFHIRResource(fhirResourceDeleteCall FHIRStoreResourceClientDeleteCall
 
 func UpdateFHIRResource(fhirStoreResourceUpdateCall FHIRStoreResourceClientUpdateCall) (*http.Response, error) {
 	return fhirStoreResourceUpdateCall.Do()
-}
-
-// updateFHIRResource updates an FHIR resource to be active or not.
-func updateFHIRResource(w io.Writer, projectID, location, datasetID, fhirStoreID, resourceType, fhirResourceID string, active bool) error {
-	ctx := context.Background()
-
-	healthcareService, err := healthcare.NewService(ctx)
-	if err != nil {
-		return fmt.Errorf("healthcare.NewService: %v", err)
-	}
-
-	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
-
-	// The following payload works with a Patient resource and is not
-	// intended to work with other types of FHIR resources. If necessary,
-	// supply a new payload with data that corresponds to the FHIR resource
-	// you are updating.
-	payload := map[string]interface{}{
-		"resourceType": resourceType,
-		"id":           fhirResourceID,
-		"active":       active,
-	}
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("json.Encode: %v", err)
-	}
-
-	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s/fhir/%s/%s", projectID, location, datasetID, fhirStoreID, resourceType, fhirResourceID)
-
-	call := fhirService.Update(name, bytes.NewReader(jsonPayload))
-	call.Header().Set("Content-Type", "application/fhir+json;charset=utf-8")
-	resp, err := call.Do()
-	if err != nil {
-		return fmt.Errorf("Update: %v", err)
-	}
-	defer resp.Body.Close()
-
-	respBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("could not read response: %v", err)
-	}
-
-	if resp.StatusCode > 299 {
-		return fmt.Errorf("Update: status %d %s: %s", resp.StatusCode, resp.Status, respBytes)
-	}
-	fmt.Fprintf(w, "%s", respBytes)
-
-	return nil
-}
-
-func fhirGetPatientEverything(w io.Writer, projectID, location, datasetID, fhirStoreID, fhirResourceID string) error {
-	ctx := context.Background()
-
-	healthcareService, err := healthcare.NewService(ctx)
-	if err != nil {
-		return fmt.Errorf("healthcare.NewService: %v", err)
-	}
-	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
-	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s/fhir/Patient/%s", projectID, location, datasetID, fhirStoreID, fhirResourceID)
-
-	resp, err := fhirService.PatientEverything(name).Do()
-	if err != nil {
-		return fmt.Errorf("PatientEverything: %v", err)
-	}
-
-	defer resp.Body.Close()
-
-	respBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("could not read response: %v", err)
-	}
-
-	if resp.StatusCode > 299 {
-		return fmt.Errorf("PatientEverything: status %d %s: %s", resp.StatusCode, resp.Status, respBytes)
-	}
-	fmt.Fprintf(w, "%s", respBytes)
-
-	return nil
-}
-
-func ddeleteFHIRResource(w io.Writer, projectID, location, datasetID, fhirStoreID, resourceType, fhirResourceID string) error {
-	ctx := context.Background()
-
-	healthcareService, err := healthcare.NewService(ctx)
-	if err != nil {
-		return fmt.Errorf("healthcare.NewService: %v", err)
-	}
-
-	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
-
-	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s/fhir/%s/%s", projectID, location, datasetID, fhirStoreID, resourceType, fhirResourceID)
-
-	if _, err := fhirService.Delete(name).Do(); err != nil {
-		return fmt.Errorf("Delete: %v", err)
-	}
-
-	fmt.Fprintf(w, "Deleted %q", name)
-
-	return nil
 }

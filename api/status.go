@@ -12,12 +12,12 @@ func DatasetNotFoundOrPermissionsInvalidStatus(datasetID string, errorString err
 	return fmt.Sprintf("Dataset either does not exist with ID %v or permissions are not valid for service account: %v", datasetID, errorString)
 }
 
-func FHIRStoreCreateFailedStatus(fhirStoreID string) string {
-	return fmt.Sprintf("Failed to create FHIR store %v check fhir-controller pod", fhirStoreID)
+func FHIRStoreCreateFailedStatus(errorString string) string {
+	return fmt.Sprintf("Failed to create FHIR store %v", errorString)
 }
 
-func FHIRStoreDeleteFailedStatus(fhirStoreID string) string {
-	return fmt.Sprintf("Failed to delete FHIR store %v check fhir-controller pod", fhirStoreID)
+func FHIRStoreDeleteFailedStatus(errorString string) string {
+	return fmt.Sprintf("Failed to delete FHIR store %v", errorString)
 }
 
 func GetInternalError(errorString string) string {

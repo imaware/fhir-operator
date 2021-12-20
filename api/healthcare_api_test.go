@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/imaware/fhir-operator/mocks"
+	"google.golang.org/api/healthcare/v1"
 )
 
 const PROJECT_ID = "imaware-test"
@@ -71,6 +72,21 @@ func Test_build_fhir_store_resource_delete_call(t *testing.T) {
 	}
 }
 
+func Test_build_fhir_store_get_iam_get_call(t *testing.T) {
+	_, err := BuildFhirStoreGetIAMPolicyRequest(PROJECT_ID, LOCATION, DATASET_ID, FHIR_ID)
+	if err != nil {
+		t.Errorf("Failed to build fhir store iam policy get call %v", err)
+	}
+}
+
+func Test_build_fhir_store_create_or_update_iam_get_call(t *testing.T) {
+	fhirStorePolicy := &healthcare.Policy{}
+	_, err := BuildFhirStoreUpdateOrCreateIAMPolicyRequest(PROJECT_ID, LOCATION, DATASET_ID, FHIR_ID, fhirStorePolicy)
+	if err != nil {
+		t.Errorf("Failed to build fhir store iam policy create or update call %v", err)
+	}
+}
+
 func Test_fhir_create_call(t *testing.T) {
 
 	mockClientCall := &mocks.MockFhirCreateCall{}
@@ -94,6 +110,14 @@ func Test_fhir_get_call(t *testing.T) {
 	_, err := GetFHIRStore(mockGetCall)
 	if err != nil {
 		t.Errorf("Failed to call mock FHIR get due to %v", err)
+	}
+}
+
+func Test_fhir_iam_policy_get_call(t *testing.T) {
+	mockFhirIAMPolicyGetCall := &mocks.MockFhirGetIAMPolicyCall{}
+	_, err := GetFHIRStoreIAMPolicy(mockFhirIAMPolicyGetCall)
+	if err != nil {
+		t.Errorf("Failed to call mock FHIR get IAM Policy due to %v", err)
 	}
 }
 
@@ -135,8 +159,4 @@ func Test_fhir_resource_get_call(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to call mock FHIR resource get due to %v", err)
 	}
-}
-
-func Test_actual(t *testing.T) {
-
 }

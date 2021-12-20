@@ -17,6 +17,10 @@ type MockFhirGetCall struct{}
 type MockFhirGetCallBadRequest struct{}
 type MockFhirCreateCallBadRequest struct{}
 type MockFhirDeleteCallBadRequest struct{}
+type MockFhirCreateOrUpdateIAMPolicyCall struct{}
+type MockFhirCreateOrUpdateIAMPolicyCallBadRequest struct{}
+type MockFhirGetIAMPolicyCall struct{}
+type MockFhirGetIAMPolicyCallBadRequest struct{}
 
 type MockFhirResourceDeleteCallBadRequest struct{}
 type MockFhirResourceDeleteCall struct{}
@@ -36,6 +40,30 @@ func (m *MockDatasetCreateCall) Do(opts ...googleapi.CallOption) (*healthcare.Op
 
 func (m *MockDatastoreGetCall) Do(opts ...googleapi.CallOption) (*healthcare.Dataset, error) {
 	return nil, nil
+}
+
+func (m *MockFhirGetIAMPolicyCall) Do(opts ...googleapi.CallOption) (*healthcare.Policy, error) {
+	bindings := []*healthcare.Binding{}
+	var policy = &healthcare.Policy{}
+	policy.Bindings = append(bindings, &healthcare.Binding{})
+	return policy, nil
+}
+
+func (m *MockFhirGetIAMPolicyCallBadRequest) Do(opts ...googleapi.CallOption) (*healthcare.Policy, error) {
+	googleError := &googleapi.Error{Code: 500}
+	return nil, googleError
+}
+
+func (m *MockFhirCreateOrUpdateIAMPolicyCall) Do(opts ...googleapi.CallOption) (*healthcare.Policy, error) {
+	bindings := []*healthcare.Binding{}
+	var policy = &healthcare.Policy{}
+	policy.Bindings = append(bindings, &healthcare.Binding{})
+	return policy, nil
+}
+
+func (m *MockFhirCreateOrUpdateIAMPolicyCallBadRequest) Do(opts ...googleapi.CallOption) (*healthcare.Policy, error) {
+	googleError := &googleapi.Error{Code: 500}
+	return nil, googleError
 }
 
 func (m *MockFhirGetCall) Do(opts ...googleapi.CallOption) (*healthcare.FhirStore, error) {

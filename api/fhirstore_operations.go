@@ -3,8 +3,10 @@ package api
 import (
 	"fmt"
 
+	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/healthcare/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -15,14 +17,9 @@ var (
 const DATSET_ERROR_NOT_FOUND = 403
 const FHIR_STORE_ERROR_NOT_FOUND = 404
 
-// Perform a read on the dataset and fhirstore healthcare api in-order to make a decision to delete a fhirstore if the
+// Perform a fhirstore healthcare api in-order to make a decision to delete a fhirstore if the
 // fhirstore does exist
-func ReadAndOrDeleteFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGetCall FHIRStoreClientGetCall, fhirStoreDeleteCall FHIRStoreClientDeleteCall, fhirStore *fhirv1alpha1.FhirStore) error {
-	// make sure dataset exists
-	err := datasetExists(datasetGetCall, fhirStore)
-	if err != nil {
-		return err
-	}
+func ReadAndOrDeleteFHIRStore(fhirStoreGetCall FHIRStoreClientGetCall, fhirStoreDeleteCall FHIRStoreClientDeleteCall, fhirStore *fhirv1alpha1.FhirStore) error {
 	// check if fhir store exists
 	// if it exists we break early
 	exists, err := fhirStoreExists(fhirStoreGetCall, fhirStore)
@@ -30,7 +27,7 @@ func ReadAndOrDeleteFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGe
 		return err
 	}
 	if !exists {
-		logger.Info(fmt.Sprintf("Fhirstore %v does not exist skipping delete for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+		logger.V(1).Info(fmt.Sprintf("Fhirstore %v does not exist skipping delete for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 		return nil
 	}
 	// means fhir store does not exist create it
@@ -41,34 +38,55 @@ func ReadAndOrDeleteFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGe
 	return nil
 }
 
+// Perform a get on the fhir store for it's IAM policy settings and return the policy.
+func ReadFHIRStoreIAMPolicy(fhirStoreIAMPolicyGetCall FHIRStoreClientIAMPolicyGetCall, fhirStore *fhirv1alpha1.FhirStore) (*healthcare.Policy, error) {
+	policy, err := GetFHIRStoreIAMPolicy(fhirStoreIAMPolicyGetCall)
+	if err != nil {
+		logger.V(1).Error(err, fmt.Sprintf("Failed to get fhirstore iam policy for resource %v in namespace %v", fhirStore.Name, fhirStore.Namespace))
+		fhirStore.Status.Status = FAILED
+		fhirStore.Status.Message = FHIRStoreCreateFailedStatus(err.Error())
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to get fhirstore iam policy for resource %v in namespace %v", fhirStore.Name, fhirStore.Namespace))
+	}
+	return policy, nil
+}
+
+// Perform an update on the fhir store's IAM policy setting. update the fhirstore object's status based on a failed
+// update action. An error will be returned if the API call fails
+func CreateOrUpdateFHIRStoreIAMPolicy(fhirStoreIAMPolicyCreateOrUpdateCall FHIRStoreClientIAMPolicyCreateOrUpdateCall, fhirStore *fhirv1alpha1.FhirStore) error {
+	_, err := UpdateFHIRStoreIAMPolicy(fhirStoreIAMPolicyCreateOrUpdateCall)
+	if err != nil {
+		logger.V(1).Error(err, fmt.Sprintf("Failed to create fhirstore %v IAM policy for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+		fhirStore.Status.Status = FAILED
+		fhirStore.Status.Message = FHIRStoreCreateFailedStatus(err.Error())
+		return fmt.Errorf(fmt.Sprintf("Failed to create fhirstore %v IAM policy for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+	}
+	return nil
+}
+
 // Perform a read on the dataset and fhirstore healthcare api in-order to make a decision to create a fhirstore if the
 // fhirstore does not exist
-func ReadAndOrCreateFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGetCall FHIRStoreClientGetCall, fhirStoreCreateCall FHRIStoreClientCreateCall, fhirStore *fhirv1alpha1.FhirStore) (bool, error) {
+func ReadAndOrCreateFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGetCall FHIRStoreClientGetCall, fhirStoreCreateCall FHRIStoreClientCreateCall, fhirStore *fhirv1alpha1.FhirStore) error {
 	// make sure dataset exists
 	err := datasetExists(datasetGetCall, fhirStore)
 	if err != nil {
-		return false, err
+		return err
 	}
 	// check if fhir store exists
 	// if it exists we break early
 	fhirStorExists, err := fhirStoreExists(fhirStoreGetCall, fhirStore)
 	if err != nil {
-		return false, err
-	} else if fhirStorExists {
-		logger.Info(fmt.Sprintf("Fhirstore %v exists skipping create for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
-		fhirStore.Status.Status = CREATED
-		fhirStore.Status.Message = FHIRStoreCreatedStatus(fhirStore.Spec.FhirStoreID)
-		return false, nil
+		return err
+	} else if !fhirStorExists {
+		// means fhir store does not exist create it
+		err = createFhirStore(fhirStoreCreateCall, fhirStore)
+		if err != nil {
+			return err
+		}
 	}
-	// means fhir store does not exist create it
-	err = createFhirStore(fhirStoreCreateCall, fhirStore)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+	return nil
 }
 
-// Create the fhirstore and update the fhirstore object's status based on the
+// Create the fhirstore and update the fhirstore object's status based on a failed
 // create. An error will be returned if the api call fails.
 func createFhirStore(fhirStoreCreateCall FHRIStoreClientCreateCall, fhirStore *fhirv1alpha1.FhirStore) error {
 	_, err := CreateFHIRStore(fhirStoreCreateCall)
@@ -77,14 +95,13 @@ func createFhirStore(fhirStoreCreateCall FHRIStoreClientCreateCall, fhirStore *f
 		if ok {
 			logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to create fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 			fhirStore.Status.Status = FAILED
-			fhirStore.Status.Message = FHIRStoreCreateFailedStatus(fhirStore.Spec.FhirStoreID)
+			fhirStore.Status.Message = FHIRStoreCreateFailedStatus(err.Error())
 			return fmt.Errorf(fmt.Sprintf("Failed to create fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 		} else {
 			fhirStore.Status.Status = FAILED
-			fhirStore.Status.Message = FHIRStoreCreateFailedStatus(fhirStore.Spec.FhirStoreID)
+			fhirStore.Status.Message = FHIRStoreCreateFailedStatus(err.Error())
 			return fmt.Errorf(fmt.Sprintf("Create fhirstore %v internal error for resource %v in namespace %v: %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace, err))
 		}
-		// FHIR store was created re-queue the event to make sure we can obtain it from API
 	} else {
 		logger.Info(fmt.Sprintf("FHIR store created %v in dataset %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 		fhirStore.Status.Status = CREATING
@@ -102,14 +119,13 @@ func deleteFhirStore(fhirStoreDeleteCall FHIRStoreClientDeleteCall, fhirStore *f
 		if ok {
 			logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to delete fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 			fhirStore.Status.Status = FAILED
-			fhirStore.Status.Message = FHIRStoreDeleteFailedStatus(fhirStore.Spec.FhirStoreID)
+			fhirStore.Status.Message = FHIRStoreDeleteFailedStatus(err.Error())
 			return fmt.Errorf("Failed to delete FHIR store")
 		} else {
 			fhirStore.Status.Status = FAILED
-			fhirStore.Status.Message = FHIRStoreDeleteFailedStatus(fhirStore.Spec.FhirStoreID)
+			fhirStore.Status.Message = FHIRStoreDeleteFailedStatus(err.Error())
 			return fmt.Errorf("Delete fhirstore internal error: %v", err)
 		}
-		// FHIR store was created re-queue the event to make sure we can obtain it from API
 	} else {
 		logger.Info(fmt.Sprintf("FHIR store deleted %v in dataset %v for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 		return nil
@@ -173,4 +189,18 @@ func fhirStoreExists(fhirstoreGetCall FHIRStoreClientGetCall, fhirStore *fhirv1a
 		logger.V(1).Info(fmt.Sprintf("Fhirstore %v exists", fhirStore.Spec.FhirStoreID))
 		return true, nil
 	}
+}
+
+// Given the auth spec of the fhirStore generate the google policy bindings to attach to the
+// fhir store IAM api
+func GenerateIAMPolicyBindings(newBindings map[string]v1alpha1.FhirStoreSpecAuth) []*healthcare.Binding {
+	var policyBindings []*healthcare.Binding
+	for role, members := range newBindings {
+		policyBinding := &healthcare.Binding{
+			Role:    role,
+			Members: members.Members,
+		}
+		policyBindings = append(policyBindings, policyBinding)
+	}
+	return policyBindings
 }

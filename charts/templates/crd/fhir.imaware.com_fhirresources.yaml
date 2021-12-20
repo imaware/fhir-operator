@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: fhirstores.fhir.imaware.com
+  name: fhirresources.fhir.imaware.com
 spec:
   group: fhir.imaware.com
   names:
-    kind: FhirStore
-    listKind: FhirStoreList
-    plural: fhirstores
-    singular: fhirstore
+    kind: FhirResource
+    listKind: FhirResourceList
+    plural: fhirresources
+    singular: fhirresource
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: FhirStore is the Schema for the fhirstores API
+        description: FhirResource is the Schema for the fhirresources API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,52 +34,32 @@ spec:
           metadata:
             type: object
           spec:
-            description: FhirStoreSpec defines the desired state of FhirStore
+            description: FhirResourceSpec defines the desired state of FhirResource
             properties:
-              auth:
-                additionalProperties:
-                  description: FhirStoreSpecAuthSpec defines what service accounts
-                    can talk to the fhir API
-                  properties:
-                    members:
-                      items:
-                        type: string
-                      type: array
-                  required:
-                  - members
-                  type: object
-                description: auth defines who has access to the fhir API. Key is the
-                  role and each key has a members which contains a list of members
-                type: object
-              datasetID:
-                description: datasetID is the name of the dataset the fhirstore will
-                  be put in
+              representation:
+                description: The representation of the FHIR resource in JSON format
                 type: string
-              fhirStoreID:
-                description: fhirStoreID is the name that the fhir store will be called
+              resourceType:
+                description: Type this points to the type of the FHIR resource such
+                  as ObservationDefinition
                 type: string
-              options:
-                description: options Options to be enabled on the fhir store
+              selector:
+                description: The FhirStore that the resource will be applied to by
+                  the selector
                 properties:
-                  enableUpdateCreate:
-                    description: enableUpdateCreate enables or disables the create
-                      on update option for the fhir store
-                    type: boolean
-                  preventDelete:
-                    description: preventDelete option to prevent the fhir store from
-                      being deleted if set to true. This will also prevent the resource
-                      from being deleted unless removed
-                    type: boolean
+                  name:
+                    description: The FhirStore resource name to select for the resource
+                    type: string
                 required:
-                - enableUpdateCreate
-                - preventDelete
+                - name
                 type: object
             required:
-            - datasetID
-            - fhirStoreID
+            - representation
+            - resourceType
+            - selector
             type: object
           status:
-            description: FhirStoreStatus defines the observed state of FhirStore
+            description: FhirResourceStatus defines the observed state of FhirResource
             properties:
               Message:
                 type: string
