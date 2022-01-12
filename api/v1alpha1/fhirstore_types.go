@@ -35,7 +35,7 @@ type FhirStoreSpec struct {
 	// auth defines who has access to the fhir API. Key is the role and each key has a members which contains a list of members
 	Auth map[string]FhirStoreSpecAuth `json:"auth,omitempty"`
 	// options Options to be enabled on the fhir store
-	Options FhirStoreSpecOptions `json:"options,omitempty"`
+	Options FhirStoreSpecOptions `json:"options"`
 }
 
 // FhirStoreSpecAuthSpec defines what service accounts can talk to the fhir API
