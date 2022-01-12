@@ -26,7 +26,8 @@ Describe the resources and make sure they state CREATED in status
 Resource used to create a GCP FhirStore within a dataset. Currently requires the dataset to exist. FhirStore's are namespace scoped and provide the ability to specify the name of the store and any IAM permission policies to apply to the API. Reference examples/stores for examples. 
 
 - FhirStore.Spec.auth: each key represents a role to bind to a list of members
-
+- FhirStore.Spec.options:
+  - preventDelete: prevent the delete of the resource and fhirStore in case of resrouce deletion
 ### *FhirResource
 Resource is used to create a Fhir resource in the FhirStore specified in the selector. *NOTE*: The selector points to the actual FhirStore resource and not the GCP Fhir store. A FhirResource can accomodate any FHIR representation. Reference examples/resources for examples
 

@@ -98,9 +98,14 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// indicated by the deletion timestamp being set.
 			isFhirStoreMarkedToBeDeleted := fhirStore.GetDeletionTimestamp() != nil
 			if isFhirStoreMarkedToBeDeleted {
-				result, err = deleteFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall)
-				if err == nil && controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
-					err = removeFhirStoreFinalizer(fhirStore, r, ctx)
+				if fhirStore.Spec.Options.PreventDelete {
+					logger.Info(fmt.Sprintf("Fhirstore %v can not be deleted %v in namesapce %v as preventDelete option set", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+					err = nil
+				} else {
+					result, err = deleteFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall)
+					if err == nil && controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
+						err = removeFhirStoreFinalizer(fhirStore, r, ctx)
+					}
 				}
 			} else {
 				// Add finalizer for this CR
