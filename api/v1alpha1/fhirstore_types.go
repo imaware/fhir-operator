@@ -45,9 +45,9 @@ type FhirStoreSpecAuth struct {
 
 type FhirStoreSpecOptions struct {
 	// preventDelete option to prevent the fhir store from being deleted if set to true. This will also prevent the resource from being deleted unless removed
-	PreventDelete bool `json:"preventDelete"`
+	PreventDelete bool `json:"preventDelete,omitempty"`
 	// enableUpdateCreate enables or disables the create on update option for the fhir store
-	EnableUpdateCreate bool `json:"enableUpdateCreate"`
+	EnableUpdateCreate bool `json:"enableUpdateCreate,omitempty"`
 }
 
 // FhirStoreStatus defines the observed state of FhirStore

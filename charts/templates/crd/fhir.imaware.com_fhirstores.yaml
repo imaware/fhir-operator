@@ -70,9 +70,6 @@ spec:
                       being deleted if set to true. This will also prevent the resource
                       from being deleted unless removed
                     type: boolean
-                required:
-                - enableUpdateCreate
-                - preventDelete
                 type: object
             required:
             - datasetID
