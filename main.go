@@ -17,12 +17,15 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 
+	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/storage"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -86,7 +89,17 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
+	ctx := context.Background()
+	pubsubClient, err := pubsub.NewClient(ctx, "blue-sytkbj")
+	if err != nil {
+		setupLog.Error(err, "unable to configure pubsub client")
+		os.Exit(1)
+	}
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		setupLog.Error(err, "unable to configure storage client")
+		os.Exit(1)
+	}
 	if err = (&controllers.FhirStoreReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -101,6 +114,17 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "FhirResource")
 		os.Exit(1)
 	}
+	apiClientPubsub := &api.GCPPUBClient{PubsubClient: pubsubClient}
+	apiClientStorage := &api.GCSClient{StorageClient: storageClient}
+	if err = (&controllers.FhirGCSConnectorReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		PubSubClient:  apiClientPubsub,
+		StorageClient: apiClientStorage,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FhirGCSConnector")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -111,10 +135,10 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+
 }

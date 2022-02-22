@@ -13,15 +13,15 @@ func DatasetNotFoundOrPermissionsInvalidStatus(datasetID string, errorString err
 }
 
 func FHIRStoreCreateFailedStatus(errorString string) string {
-	return fmt.Sprintf("Failed to create FHIR store %v", errorString)
+	return fmt.Sprintf("Failed to create FHIR store  due to [ %v ]", errorString)
 }
 
 func FHIRStoreDeleteFailedStatus(errorString string) string {
-	return fmt.Sprintf("Failed to delete FHIR store %v", errorString)
+	return fmt.Sprintf("Failed to delete FHIR store due to [ %v ]", errorString)
 }
 
 func GetInternalError(errorString string) string {
-	return fmt.Sprintf("Internal error: %v", errorString)
+	return fmt.Sprintf("Internal error: [ %v ]", errorString)
 }
 
 func FHIRStoreCreatingStatus(datasetId string, fhirStoreID string) string {
@@ -33,7 +33,7 @@ func FHIRStoreCreatedStatus(fhirStoreID string) string {
 }
 
 func FHIRStoreResourceCreateOrUpdateFailedStatus(resourceName string, errorString string) string {
-	return fmt.Sprintf("Failed to create and or update FHIR resource %v due to %v", resourceName, errorString)
+	return fmt.Sprintf("Failed to create and or update FHIR resource %v due to [ %v ]", resourceName, errorString)
 }
 
 func FHIRStoreResourceCreatedorUpdatedStatus() string {
@@ -41,7 +41,7 @@ func FHIRStoreResourceCreatedorUpdatedStatus() string {
 }
 
 func FHIRStoreResourceDeleteFailedStatus(resourceName string, errorString string) string {
-	return fmt.Sprintf("Failed to delete FHIR resource %v due to %v", resourceName, errorString)
+	return fmt.Sprintf("Failed to delete FHIR resource %v due to [ %v ]", resourceName, errorString)
 }
 
 func FHIRStoreResourceDeletetatus() string {
@@ -54,4 +54,20 @@ func FHIRStoreResourcePendingOnFhirStoreStatus(fhirStoreName string) string {
 
 func FHIRStoreResourcePendingOnParentResourceStatus() string {
 	return "Waiting on parent resource to be created"
+}
+
+func FHIRGCSConnectorFailedSubscriptionToTopicStatus(topicName string, errorString string) string {
+	return fmt.Sprintf("Failed to subscribe to topic %s due to [ %s ]", topicName, errorString)
+}
+
+func FHIRGCSConnectorFailedSubscriptionCreationStatus(subscriptionName string, errorString string) string {
+	return fmt.Sprintf("Failed to create subscription %s due to [ %s ]", subscriptionName, errorString)
+}
+
+func FHIRGCSConnectorFailedToGetTopicStatus(topicName string, errorString string) string {
+	return fmt.Sprintf("Failed to get topic %s due to [ %s ]", topicName, errorString)
+}
+
+func FHIRGCSConnectorConsumingFromTopicStatus(subscriptionName string, topicName string) string {
+	return fmt.Sprintf("Subscription %s consuming from topic %s", subscriptionName, topicName)
 }

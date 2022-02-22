@@ -25,27 +25,13 @@ resources:
   kind: FhirResource
   path: github.com/imaware/fhir-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: imaware.com
+  group: fhir
+  kind: FhirGCSConnector
+  path: github.com/imaware/fhir-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
-
-
-
-
-apiVersion: iam.cnrm.cloud.google.com/v1beta1
-kind: IAMPolicy
-metadata:
-  labels:
-    app.kubernetes.io/instance: fhir-manager
-  name: {{ include "fhir-operator.iamAccountName" $ }}-pol
-  namespace: {{ .Values.namespace }}
-
-spec:
-  bindings:
-    - members:
-        - >-
-          serviceAccount:{{ $.Values.iamServiceAccount.project }}.svc.id.goog[{{ .Values.namespace }}/{{ include "fhir-operator.serviceAccountName" . }}]
-      role: roles/iam.workloadIdentityUser
-  resourceRef:
-    apiVersion: iam.cnrm.cloud.google.com/v1beta1
-    kind: IAMServiceAccount
-    name: {{ include "fhir-operator-iamAccountName" . }}
----

@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/imaware/fhir-operator/api"
+	"github.com/imaware/fhir-operator/api/utils"
 	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
 )
@@ -101,19 +102,27 @@ func (r *FhirResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// indicated by the deletion timestamp being set.
 			isFhirResourceMarkedToBeDeleted := fhirResource.GetDeletionTimestamp() != nil
 			if isFhirResourceMarkedToBeDeleted {
-				// we can safely delete the resource as the resource will not be present in the cloud
-				if fhirStore == nil || fhirStore.Status.Status != api.CREATED {
-					err = removeFhirResourceFinalizer(fhirResource, r, ctx)
-				} else {
-					result, err = deleteFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
-					if err == nil {
-						err = removeFhirResourceFinalizer(fhirResource, r, ctx)
+				// delete the fhir resource
+				var deleteError error = nil
+				if fhirStore != nil || fhirStore.Status.Status != api.DELETED {
+					result, deleteError = deleteFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
+				}
+				if deleteError == nil {
+					utils.RemoveFinalizer(fhirResource, FHISTORE_FINALIZER)
+					updateError := r.Update(ctx, fhirResource)
+					if updateError != nil {
+						fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to remove finalizer for fhirresource resource %v", fhirResource.Name))
+						err = updateError
 					}
 				}
 				// not marked to be deleted so it is either a create or update request
 			} else {
-				err = addFhirResourceFinalizer(fhirResource, r, ctx)
-				if err == nil {
+				utils.AddFinalizer(fhirResource, FHISTORE_FINALIZER)
+				updateError := r.Update(ctx, fhirResource)
+				if updateError != nil {
+					fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirresource resource %v", fhirResource.Name))
+					err = updateError
+				} else {
 					result, err = createOrUpdateFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
 				}
 			}
@@ -150,26 +159,6 @@ func addFhirResourceFinalizer(fhirResource *v1alpha1.FhirResource, r *FhirResour
 	} else {
 		fhirResourceLogger.V(1).Info(fmt.Sprintf("Finalizer already present on resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
 	}
-	return nil
-}
-
-// Remove a finalizer to the kubernetes fhirresourc's metadata
-//   finalizers:
-//  - fhir.imaware.com/finalizer
-// This allows for full removal of the resource from the kubernetes ETCD
-func removeFhirResourceFinalizer(fhirResource *v1alpha1.FhirResource, r *FhirResourceReconciler, ctx context.Context) error {
-	fhirResourceLogger.V(1).Info(fmt.Sprintf("Removing finalizer from resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
-	controllerutil.RemoveFinalizer(fhirResource, FHISTORE_FINALIZER)
-	err := r.Update(ctx, fhirResource)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		} else {
-			fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to update finalizer for fhir resource resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
-			return err
-		}
-	}
-	fhirResourceLogger.V(1).Info(fmt.Sprintf("Removed finalizer from resource %v in namespace %v", fhirResource.Name, fhirResource.Namespace))
 	return nil
 }
 

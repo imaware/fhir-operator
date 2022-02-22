@@ -9,6 +9,32 @@ rules:
 - apiGroups:
   - fhir.imaware.com
   resources:
+  - fhirgcsconnectors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - fhir.imaware.com
+  resources:
+  - fhirgcsconnectors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - fhir.imaware.com
+  resources:
+  - fhirgcsconnectors/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - fhir.imaware.com
+  resources:
   - fhirresources
   verbs:
   - create
