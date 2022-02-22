@@ -1,0 +1,15 @@
+apiVersion: fhir.imaware.com/v1alpha1
+kind: FhirGCSConnector
+metadata:
+  name: test-gcs
+  namespace: test
+spec:
+  topic: sf_updates
+  subscriptionName: test_subscription
+  filter: "hasPrefix(attributes.objectId, \"fake-partner\")"
+  fhirStoreSelector:
+    name: test-fhir-data
+
+
+
+

@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/imaware/fhir-operator/api/utils"
 	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
 )
@@ -103,14 +103,23 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err = nil
 				} else {
 					result, err = deleteFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall)
-					if err == nil && controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
-						err = removeFhirStoreFinalizer(fhirStore, r, ctx)
+					if err == nil {
+						utils.RemoveFinalizer(fhirStore, FHISTORE_FINALIZER)
+						updateError := r.Update(ctx, fhirStore)
+						if err != nil {
+							logger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirstore resource %v", fhirStore.Name))
+							err = updateError
+						}
 					}
 				}
 			} else {
 				// Add finalizer for this CR
-				err = addFhirStoreFinalizer(fhirStore, r, ctx)
-				if err == nil {
+				utils.AddFinalizer(fhirStore, FHISTORE_FINALIZER)
+				updateError := r.Update(ctx, fhirStore)
+				if err != nil {
+					logger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirstore resource %v", fhirStore.Name))
+					err = updateError
+				} else {
 					var fhirStoreCreateCall *healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall
 					fhirStoreCreateCall, err = api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
 					if err != nil {
@@ -134,42 +143,6 @@ func (r *FhirStoreReconciler) SetupWithManager(mgr ctrl.Manager, conf *api.Confi
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&fhirv1alpha1.FhirStore{}).WithEventFilter(pred).
 		Complete(r)
-}
-
-// Add a finalizer to the kubernetes fhirstor's metadata
-//   finalizers:
-//  - fhir.imaware.com/finalizer
-// This allows for full cleanup of the fhirstore and any other dependencies
-func addFhirStoreFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx context.Context) error {
-	if !controllerutil.ContainsFinalizer(fhirStore, FHISTORE_FINALIZER) {
-		logger.V(1).Info(fmt.Sprintf("Adding finalizer to resource %v", fhirStore.Name))
-		controllerutil.AddFinalizer(fhirStore, FHISTORE_FINALIZER)
-		err := r.Update(ctx, fhirStore)
-		if err != nil {
-			logger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirstore resource %v", fhirStore.Name))
-			return err
-		}
-		logger.V(1).Info(fmt.Sprintf("Added finalizer to resource %v", fhirStore.Name))
-	} else {
-		logger.V(1).Info(fmt.Sprintf("Finalizer already present on resource %v", fhirStore.Name))
-	}
-	return nil
-}
-
-// Remove a finalizer to the kubernetes fhirstor's metadata
-//   finalizers:
-//  - fhir.imaware.com/finalizer
-// This allows for full removal of the resource from the kubernetes ETCD
-func removeFhirStoreFinalizer(fhirStore *v1alpha1.FhirStore, r *FhirStoreReconciler, ctx context.Context) error {
-	logger.V(1).Info(fmt.Sprintf("Removing finalizer from resource %v", fhirStore.Name))
-	controllerutil.RemoveFinalizer(fhirStore, FHISTORE_FINALIZER)
-	err := r.Update(ctx, fhirStore)
-	if err != nil {
-		logger.V(1).Error(err, fmt.Sprintf("Failed to update finalizer for fhirstore resource %v", fhirStore.Name))
-		return err
-	}
-	logger.V(1).Info(fmt.Sprintf("Removed finalizer from resource %v", fhirStore.Name))
-	return nil
 }
 
 func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall, fhirStoreCreateCall api.FHRIStoreClientCreateCall) (ctrl.Result, error) {

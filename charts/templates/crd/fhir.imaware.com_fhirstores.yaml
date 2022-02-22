@@ -74,7 +74,6 @@ spec:
             required:
             - datasetID
             - fhirStoreID
-            - options
             type: object
           status:
             description: FhirStoreStatus defines the observed state of FhirStore

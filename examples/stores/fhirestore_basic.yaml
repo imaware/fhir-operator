@@ -6,6 +6,8 @@ metadata:
 spec:
   datasetID: test-dataset
   fhirStoreID: test-fhirstore
+  options:
+    preventDelete: false
 
 
 
