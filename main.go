@@ -90,7 +90,7 @@ func main() {
 		os.Exit(1)
 	}
 	ctx := context.Background()
-	pubsubClient, err := pubsub.NewClient(ctx, "blue-sytkbj")
+	pubsubClient, err := pubsub.NewClient(ctx, config.GCPProject)
 	if err != nil {
 		setupLog.Error(err, "unable to configure pubsub client")
 		os.Exit(1)
