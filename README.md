@@ -31,6 +31,14 @@ Resource used to create a GCP FhirStore within a dataset. Currently requires the
 ### *FhirResource
 Resource is used to create a Fhir resource in the FhirStore specified in the selector. *NOTE*: The selector points to the actual FhirStore resource and not the GCP Fhir store. A FhirResource can accomodate any FHIR representation. Reference examples/resources for examples
 
+### *FhirGCSConnector
+Resource is used to create a subscription to a pubsub topic that listenes for GCS bucket events that holds json data that represents a fhir resource. The name of the file stored in the bucket must be DNS compliant for kubernetes as each file will create a fhir resource that is bound to the same namespace as the FhirGCSConnector resource. Reference examples/fhirgcsconnector for examples.
+
+- FhirGCSConnector.Spec.topic: name of the topic to bind the subscription to
+- FhirGCSConnector.Spec.subscriptionName: name of the subscription to create
+- FhirGCSConnector.Spec.filter(optional): subscription filter that can be applied to the resource NOTE: this filter can not be changed once the resource is create. Must delete and re-create to update filter
+- FhirGCSConnector.Spec.fhirStoreSelector:
+  - name: name of the fhirstore to bind the fhir resoures too
 ## Testing
 Make sure you have a GCP service account confgiured and pointing to GOOGLE_APPLICATION_CREDENTIALS envar
 ```
