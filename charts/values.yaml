@@ -39,6 +39,10 @@ iamServiceAccount:
     project: ""
   # -- (REQUIRED) role for the fhir operator use workload identity
   - role: roles/iam.workloadIdentityUser
+  - role: roles/storage.admin
+    project: ""
+  - role: roles/pubsub.admin
+    project: ""
 
 env:
   # -- (REQUIRED) env var that points to the project in GCP
