@@ -81,9 +81,8 @@ func (r *FhirGCSConnectorReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if isFhirGCSMarkedForDeletion {
 			err = r.PubSubClient.DeleteSubscription(r.PubSubClient.GetSubscription(fhirGCSConnector.Spec.SubscriptionName))
 			if err != nil {
-				fhirGCSconnectorLogger.Error(err, fmt.Sprintf("Failed to delete subscription %s", fhirGCSConnector.Spec.SubscriptionName))
+				fhirGCSconnectorLogger.Info(fmt.Sprintf("Failed to delete subscription %s due to: [ %v ]", fhirGCSConnector.Spec.SubscriptionName, err))
 				err = nil
-			} else {
 				utils.RemoveFinalizer(fhirGCSConnector, FHISTORE_FINALIZER)
 				err := r.Update(ctx, fhirGCSConnector)
 				if err != nil {
