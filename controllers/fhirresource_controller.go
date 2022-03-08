@@ -104,7 +104,7 @@ func (r *FhirResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if isFhirResourceMarkedToBeDeleted {
 				// delete the fhir resource
 				var deleteError error = nil
-				if fhirStore != nil || fhirStore.Status.Status != api.DELETED {
+				if fhirStore != nil && fhirStore.Status.Status != api.DELETED {
 					result, deleteError = deleteFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
 				}
 				if deleteError == nil {
