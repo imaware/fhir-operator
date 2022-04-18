@@ -45,3 +45,10 @@ jobs:
           docker push "$REGISTRY"/fhir-operator:"$GITHUB_SHA"
           docker tag "$REGISTRY"/fhir-operator:"$TAG" "$REGISTRY"/fhir-operator:latest
           docker push "$REGISTRY"/fhir-operator:latest
+      - name: Update Chart Manifest
+        run: |
+          yq eval ".version = \"${{ steps.bump_version.outputs.next-version }}\"" -i charts/Chart.yaml
+      - name: Build and Push chart
+        run: |
+          helm  package chart
+          helm push fhir-operator-${{ github.event.release.tag_name }}.tgz ghcr.io/${{ github.repository_owner }}/fhir-operator-chart
