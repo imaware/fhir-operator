@@ -74,3 +74,4 @@ jobs:
           git commit -m "update(helm): [skip ci]release chart"
           git pull --rebase --autostash
           git push
+
