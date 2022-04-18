@@ -73,5 +73,5 @@ jobs:
           git config --global user.name "bloodbot"
           git add charts/Chart.yaml
           git commit -m "update(helm): [skip ci]release chart"
-          git pull --rebase --autostash
-          git push
+          git pull origin main --rebase --autostash 
+          git push origin main
