@@ -41,7 +41,7 @@ func FHIRStoreResourceCreatedorUpdatedStatus() string {
 }
 
 func FHIRStoreResourceDeleteFailedStatus(resourceName string, errorString string) string {
-	return fmt.Sprintf("Failed to delete FHIR resource %v due to [ %v ]", resourceName, errorString)
+	return fmt.Sprintf("Failed to delete FhirStore resource %v due to [ %v ]", resourceName, errorString)
 }
 
 func FHIRStoreResourceDeletetatus() string {
