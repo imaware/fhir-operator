@@ -99,15 +99,22 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			isFhirStoreMarkedToBeDeleted := fhirStore.GetDeletionTimestamp() != nil
 			if isFhirStoreMarkedToBeDeleted {
 				if fhirStore.Spec.Options.PreventDelete {
-					logger.Info(fmt.Sprintf("Fhirstore %v can not be deleted %v in namesapce %v as preventDelete option set", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
-					err = nil
+					logger.Info(fmt.Sprintf("Fhirstore %v can not be deleted %v in namesapce %v as preventDelete option set will remove store", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+					utils.RemoveFinalizer(fhirStore, FHISTORE_FINALIZER)
+					updateError := r.Update(ctx, fhirStore)
+					if updateError != nil {
+						logger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirstore resource %v", fhirStore.Name))
+						err = updateError
+					} else {
+						err = nil
+					}
 				} else {
 					result, err = deleteFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall)
 					if err == nil {
 						utils.RemoveFinalizer(fhirStore, FHISTORE_FINALIZER)
 						updateError := r.Update(ctx, fhirStore)
-						if err != nil {
-							logger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirstore resource %v", fhirStore.Name))
+						if updateError != nil {
+							logger.V(1).Error(err, fmt.Sprintf("Failed to remove finalizer for fhirstore resource %v", fhirStore.Name))
 							err = updateError
 						}
 					}
