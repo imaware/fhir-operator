@@ -96,10 +96,10 @@ func (r *FhirGCSConnectorReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err == nil {
 				r.initConsumer(fhirGCSConnector)
 			}
+			// update status reflecting resource
+			r.Status().Update(ctx, fhirGCSConnector)
 		}
 	}
-	// update status reflecting resource
-	r.Status().Update(ctx, fhirGCSConnector)
 	return result, err
 }
 
