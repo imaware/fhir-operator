@@ -27,6 +27,20 @@ jobs:
           username: bloodbot
           password: ${{ secrets.BOT_TOKEN }}
 
+      - id: "auth"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v0"
+        with:
+          workload_identity_provider: ${{ secrets.IMAWARE_TEST_WIP }}
+          service_account: ${{ secrets.IMAWARE_TEST_WIP_SERVICE_ACCOUNT }}
+      # Setup gcloud CLI
+      - name: Set up GCP Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      - name: Authenticate to helm registry
+        run: |
+          helm version
+          gcloud auth application-default print-access-token | helm registry login -u oauth2accesstoken \
+          --password-stdin https://us-central1-docker.pkg.dev
       # Build the Docker image
       - name: Build
         env:
@@ -51,4 +65,12 @@ jobs:
       - name: Build and Push chart
         run: |
           helm  package charts
-          helm push fhir-operator-${{ github.event.release.tag_name }}.tgz ghcr.io/${{ github.repository_owner }}/fhir-operator-chart
+          helm push fhir-operator-${{ github.event.release.tag_name }}.tgz oci://us-central1-docker.pkg.dev/imaware-artifacts/charts-public
+      - name: Update chart manifest
+        run: |
+          git remote update
+          git config --global user.name "bloodbot"
+          git add charts/Chart.yaml
+          git commit -m "update(helm): [skip ci]release chart"
+          git pull --rebase --autostash
+          git push
