@@ -47,7 +47,7 @@ jobs:
           docker push "$REGISTRY"/fhir-operator:latest
       - name: Update Chart Manifest
         run: |
-          yq eval ".version = \"${{ steps.bump_version.outputs.next-version }}\"" -i charts/Chart.yaml
+          yq eval ".version = \"${{ github.event.release.tag_name }}\"" -i charts/Chart.yaml
       - name: Build and Push chart
         run: |
           helm  package charts
