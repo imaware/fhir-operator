@@ -67,11 +67,4 @@ jobs:
         run: |
           helm  package charts
           helm push fhir-operator-${{ github.event.release.tag_name }}.tgz oci://us-central1-docker.pkg.dev/imaware-artifacts/charts-public
-      - name: Update chart manifest
-        run: |
-          git remote update
-          git config --global user.name "bloodbot"
-          git add charts/Chart.yaml
-          git commit -m "update(helm): [skip ci]release chart"
-          git pull origin main --rebase --autostash 
-          git push origin main
+
