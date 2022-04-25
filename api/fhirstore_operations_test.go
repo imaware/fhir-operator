@@ -130,3 +130,17 @@ func Test_generate_IAM_policy(t *testing.T) {
 	}
 
 }
+
+func Test_generate_streaming_configs(t *testing.T) {
+	id1 := "id1"
+	id2 := "id2"
+	expectedLen := 2
+	fhirstoreBigquerryConfig1 := v1alpha1.FhirStoreSpecOptionsBigquerry{Id: id1}
+	fhirstoreBigquerryConfig2 := v1alpha1.FhirStoreSpecOptionsBigquerry{Id: id2}
+	fhirstoreBigquerryConfigs := []v1alpha1.FhirStoreSpecOptionsBigquerry{fhirstoreBigquerryConfig1, fhirstoreBigquerryConfig2}
+	streamingConfigs := GenerateFhirStoreBigQueryConfigs(fhirstoreBigquerryConfigs)
+	if len(streamingConfigs) != expectedLen {
+		t.Errorf("expected length of streaming configs to be %d but got length of %d", expectedLen, len(streamingConfigs))
+	}
+
+}

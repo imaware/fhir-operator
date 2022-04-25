@@ -204,3 +204,19 @@ func GenerateIAMPolicyBindings(newBindings map[string]v1alpha1.FhirStoreSpecAuth
 	}
 	return policyBindings
 }
+
+// Given the bigquerryConfig spec fo the fhirStore generate the corresponding streaming configs for the fhirstore object
+func GenerateFhirStoreBigQueryConfigs(bigquerryConfigs []v1alpha1.FhirStoreSpecOptionsBigquerry) []*healthcare.StreamConfig {
+
+	streamingConfigs := []*healthcare.StreamConfig{}
+	for _, config := range bigquerryConfigs {
+		streamingConfig := &healthcare.StreamConfig{
+			BigqueryDestination: &healthcare.GoogleCloudHealthcareV1FhirBigQueryDestination{
+				DatasetUri:       config.Id,
+				WriteDisposition: "WRITE_APPEND",
+			},
+		}
+		streamingConfigs = append(streamingConfigs, streamingConfig)
+	}
+	return streamingConfigs
+}

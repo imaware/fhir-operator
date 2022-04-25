@@ -49,20 +49,24 @@ type FHIRStoreResourceClientGetCall interface {
 	Do(opts ...googleapi.CallOption) (*http.Response, error)
 }
 
-func BuildFHIRStoreCreateCall(projectID string, location string, datasetID string, version string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall, error) {
+func BuildFHIRStoreCreateCall(projectID string, location string, datasetID string, version string, fhirStoreID string, streamingConfigs []*healthcare.StreamConfig) (*healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
+	}
+	fhirStore := &healthcare.FhirStore{Version: version, EnableUpdateCreate: true}
+	if len(streamingConfigs) > 0 {
+		fhirStore.StreamConfigs = streamingConfigs
 	}
 	storesService := healthcareService.Projects.Locations.Datasets.FhirStores
 	parent := fmt.Sprintf("projects/%s/locations/%s/datasets/%s", projectID, location, datasetID)
-	return storesService.Create(parent, &healthcare.FhirStore{Version: version, EnableUpdateCreate: true}).FhirStoreId(fhirStoreID), nil
+	return storesService.Create(parent, fhirStore).FhirStoreId(fhirStoreID), nil
 }
 
 func BuildDatasetCreateCall(projectID string, location string, datasetID string) (*healthcare.ProjectsLocationsDatasetsCreateCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	datasetService := healthcareService.Projects.Locations.Datasets
 	name := fmt.Sprintf("projects/%s/locations/%s", projectID, location)
@@ -72,7 +76,7 @@ func BuildDatasetCreateCall(projectID string, location string, datasetID string)
 func BuildDatasetGetCall(projectID string, location string, datasetID string) (*healthcare.ProjectsLocationsDatasetsGetCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	datasetService := healthcareService.Projects.Locations.Datasets
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s", projectID, location, datasetID)
@@ -82,7 +86,7 @@ func BuildDatasetGetCall(projectID string, location string, datasetID string) (*
 func BuildFHIRStoreGetCall(projectID string, location string, datasetID string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresGetCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	datasetService := healthcareService.Projects.Locations.Datasets.FhirStores
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
@@ -92,7 +96,7 @@ func BuildFHIRStoreGetCall(projectID string, location string, datasetID string, 
 func BuildFHIRStoreResourceGetCall(projectID string, location string, datasetID string, fhirStoreID string, resourceType string, resourceID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresFhirReadCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s/fhir/%s/%s", projectID, location, datasetID, fhirStoreID, resourceType, resourceID)
@@ -104,7 +108,7 @@ func BuildFHIRStoreResourceGetCall(projectID string, location string, datasetID 
 func BuildFhirStoreGetIAMPolicyRequest(projectID string, location string, datasetID string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresGetIamPolicyCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
@@ -114,7 +118,7 @@ func BuildFhirStoreGetIAMPolicyRequest(projectID string, location string, datase
 func BuildFhirStoreUpdateOrCreateIAMPolicyRequest(projectID string, location string, datasetID string, fhirStoreID string, fhirStorePolicy *healthcare.Policy) (*healthcare.ProjectsLocationsDatasetsFhirStoresSetIamPolicyCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
@@ -127,7 +131,7 @@ func BuildFhirStoreUpdateOrCreateIAMPolicyRequest(projectID string, location str
 func BuildFHIRStoreDeleteCall(projectID string, location string, datasetID string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresDeleteCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	datasetService := healthcareService.Projects.Locations.Datasets.FhirStores
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
@@ -137,7 +141,7 @@ func BuildFHIRStoreDeleteCall(projectID string, location string, datasetID strin
 func BuildFHIRStoreResourceDeleteCall(projectID string, location string, datasetID string, fhirStoreID string, resourceType string, resourceID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresFhirDeleteCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores.Fhir
 	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s/fhir/%s/%s", projectID, location, datasetID, fhirStoreID, resourceType, resourceID)
@@ -147,7 +151,7 @@ func BuildFHIRStoreResourceDeleteCall(projectID string, location string, dataset
 func BuildFHIRStoreResourceUpdateCall(projectID string, location string, datasetID string, fhirStoreID string, resourceRepresentation string, resourceType string, resourceID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresFhirUpdateCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("Get client error: %v", err)
+		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	resourceRepresentationBytes := []byte(resourceRepresentation)
 	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores.Fhir

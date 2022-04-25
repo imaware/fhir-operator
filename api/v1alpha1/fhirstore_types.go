@@ -48,6 +48,14 @@ type FhirStoreSpecOptions struct {
 	PreventDelete bool `json:"preventDelete,omitempty"`
 	// enableUpdateCreate enables or disables the create on update option for the fhir store
 	EnableUpdateCreate bool `json:"enableUpdateCreate,omitempty"`
+	// bigquerry options for bigquerry streaming
+	Bigquerry []FhirStoreSpecOptionsBigquerry `json:"Bigquerry,omitempty"`
+}
+
+type FhirStoreSpecOptionsBigquerry struct {
+
+	// id a bigquerry dataset id the fhirstore will push resources to
+	Id string `json:"id"`
 }
 
 // FhirStoreStatus defines the observed state of FhirStore

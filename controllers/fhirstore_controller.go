@@ -128,7 +128,8 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err = updateError
 				} else {
 					var fhirStoreCreateCall *healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall
-					fhirStoreCreateCall, err = api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
+					streamingConfigs := api.GenerateFhirStoreBigQueryConfigs(fhirStore.Spec.Options.Bigquerry)
+					fhirStoreCreateCall, err = api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID, streamingConfigs)
 					if err != nil {
 						logger.V(1).Error(err, "Failed to build Fhir store create call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 					} else {

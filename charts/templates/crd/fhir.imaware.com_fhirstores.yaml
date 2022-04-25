@@ -61,6 +61,18 @@ spec:
               options:
                 description: options Options to be enabled on the fhir store
                 properties:
+                  Bigquerry:
+                    description: bigquerry options for bigquerry streaming
+                    items:
+                      properties:
+                        id:
+                          description: id a bigquerry dataset id the fhirstore will
+                            push resources to
+                          type: string
+                      required:
+                      - id
+                      type: object
+                    type: array
                   enableUpdateCreate:
                     description: enableUpdateCreate enables or disables the create
                       on update option for the fhir store
