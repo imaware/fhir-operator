@@ -61,7 +61,7 @@ spec:
               options:
                 description: options Options to be enabled on the fhir store
                 properties:
-                  Bigquerry:
+                  bigquerry:
                     description: bigquerry options for bigquerry streaming
                     items:
                       properties:

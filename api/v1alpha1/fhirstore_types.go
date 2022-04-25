@@ -49,7 +49,7 @@ type FhirStoreSpecOptions struct {
 	// enableUpdateCreate enables or disables the create on update option for the fhir store
 	EnableUpdateCreate bool `json:"enableUpdateCreate,omitempty"`
 	// bigquerry options for bigquerry streaming
-	Bigquerry []FhirStoreSpecOptionsBigquerry `json:"Bigquerry,omitempty"`
+	Bigquerry []FhirStoreSpecOptionsBigquerry `json:"bigquerry,omitempty"`
 }
 
 type FhirStoreSpecOptionsBigquerry struct {
