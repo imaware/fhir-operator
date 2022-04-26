@@ -5,10 +5,11 @@ metadata:
   namespace: test
 spec:
   datasetID: test-dataset
-  fhirStoreID: test-fhirstore
+  fhirStoreID: ethan-fhirstore
   options:
     preventDelete: false
-
+    bigquerry:
+    - id: bq://imaware-test.test
 
 
 

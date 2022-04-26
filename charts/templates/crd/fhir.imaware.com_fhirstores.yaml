@@ -61,12 +61,12 @@ spec:
               options:
                 description: options Options to be enabled on the fhir store
                 properties:
-                  bigquerry:
-                    description: bigquerry options for bigquerry streaming
+                  bigquery:
+                    description: bigquery options for bigquerry streaming
                     items:
                       properties:
                         id:
-                          description: id a bigquerry dataset id the fhirstore will
+                          description: id a bigquery dataset id the fhirstore will
                             push resources to
                           type: string
                       required:

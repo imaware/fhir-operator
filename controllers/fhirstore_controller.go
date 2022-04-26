@@ -128,8 +128,7 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					err = updateError
 				} else {
 					var fhirStoreCreateCall *healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall
-					streamingConfigs := api.GenerateFhirStoreBigQueryConfigs(fhirStore.Spec.Options.Bigquerry)
-					fhirStoreCreateCall, err = api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID, streamingConfigs)
+					fhirStoreCreateCall, err = api.BuildFHIRStoreCreateCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, "R4", fhirStore.Spec.FhirStoreID)
 					if err != nil {
 						logger.V(1).Error(err, "Failed to build Fhir store create call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 					} else {
@@ -183,6 +182,35 @@ func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.Datas
 		err = api.CreateOrUpdateFHIRStoreIAMPolicy(fhirStoreIAMPolicyCreateOrUpdateCall, fhirStore)
 		if err != nil {
 			logger.Error(err, "Something went wrong during FHIR store IAM policy create or update", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			fhirStore.Status.Status = api.FAILED
+			fhirStore.Status.Message = api.FHIRStoreFailedIAMPolicy(err.Error())
+			return ctrl.Result{}, nil
+		}
+
+	}
+	// configure the big querry streaming if needed
+	if len(fhirStore.Spec.Options.Bigquery) > 0 {
+		fhirStoreGCP, err := api.GetFHIRStore(fhirStoreGetCall)
+		if err != nil {
+			logger.Error(err, "Something went wrong during FHIR store read", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			return ctrl.Result{}, nil
+		}
+		fhirStoreStreamingConfigs := api.GenerateFhirStoreBigQueryConfigs(fhirStore.Spec.Options.Bigquery)
+		fhirStoreGCP.StreamConfigs = fhirStoreStreamingConfigs
+		fhirStorePatchCall, err := api.BuildFhirStorePatchCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirStoreGCP)
+		if err != nil {
+			logger.V(1).Error(err, "Failed to build Fhir store patch call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			return ctrl.Result{}, err
+		}
+		// allow for updating the streamConfigs path in the resource
+		fhirStorePatchCall.UpdateMask("streamConfigs")
+
+		// create or update the policy for the fhir store
+		err = api.PatchFhirStore(fhirStorePatchCall, fhirStore)
+		if err != nil {
+			logger.Error(err, "Something went wrong during FHIR store IAM policy create or update", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+			fhirStore.Status.Status = api.FAILED
+			fhirStore.Status.Message = api.FHIRStoreFailedPatch(err.Error())
 			return ctrl.Result{}, nil
 		}
 	}

@@ -29,6 +29,8 @@ jobs:
     - name: Test
       run: go test -v ./...
     
+    - name: Test integration
+      run: go test ./controllers -tags=integration
     - name: Validate Chart
       run: |
         helm template fhir-operator ./charts --values=./charts/values.yaml

@@ -17,7 +17,7 @@ const RESOURCE_TYPE = "Observation"
 const RESOURCE_ID = "123"
 
 func Test_build_fhir_store_create_call(t *testing.T) {
-	_, err := BuildFHIRStoreCreateCall(PROJECT_ID, LOCATION, DATASET_ID, FHIR_VERSION, FHIR_ID, nil)
+	_, err := BuildFHIRStoreCreateCall(PROJECT_ID, LOCATION, DATASET_ID, FHIR_VERSION, FHIR_ID)
 	if err != nil {
 		t.Errorf("Failed to build FHIR store create call due to %v", err)
 	}

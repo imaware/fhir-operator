@@ -63,6 +63,18 @@ func CreateOrUpdateFHIRStoreIAMPolicy(fhirStoreIAMPolicyCreateOrUpdateCall FHIRS
 	return nil
 }
 
+// Perform a patch on a fhir store to update its settings. An error is returned if the API call fails
+func PatchFhirStore(fhirStorePatchCall FHIRStoreClientPatchCall, fhirStore *fhirv1alpha1.FhirStore) error {
+	_, err := PatchFHIRStore(fhirStorePatchCall)
+	if err != nil {
+		logger.V(1).Error(err, fmt.Sprintf("Failed to patch fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+		fhirStore.Status.Status = FAILED
+		fhirStore.Status.Message = FHIRStoreCreateFailedStatus(err.Error())
+		return fmt.Errorf(fmt.Sprintf("Failed to patch fhirstore %v  for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+	}
+	return nil
+}
+
 // Perform a read on the dataset and fhirstore healthcare api in-order to make a decision to create a fhirstore if the
 // fhirstore does not exist
 func ReadAndOrCreateFHIRStore(datasetGetCall DatastoreClientGetCall, fhirStoreGetCall FHIRStoreClientGetCall, fhirStoreCreateCall FHRIStoreClientCreateCall, fhirStore *fhirv1alpha1.FhirStore) error {
@@ -206,7 +218,7 @@ func GenerateIAMPolicyBindings(newBindings map[string]v1alpha1.FhirStoreSpecAuth
 }
 
 // Given the bigquerryConfig spec fo the fhirStore generate the corresponding streaming configs for the fhirstore object
-func GenerateFhirStoreBigQueryConfigs(bigquerryConfigs []v1alpha1.FhirStoreSpecOptionsBigquerry) []*healthcare.StreamConfig {
+func GenerateFhirStoreBigQueryConfigs(bigquerryConfigs []v1alpha1.FhirStoreSpecOptionsBigquery) []*healthcare.StreamConfig {
 
 	streamingConfigs := []*healthcare.StreamConfig{}
 	for _, config := range bigquerryConfigs {
@@ -214,6 +226,9 @@ func GenerateFhirStoreBigQueryConfigs(bigquerryConfigs []v1alpha1.FhirStoreSpecO
 			BigqueryDestination: &healthcare.GoogleCloudHealthcareV1FhirBigQueryDestination{
 				DatasetUri:       config.Id,
 				WriteDisposition: "WRITE_APPEND",
+				SchemaConfig: &healthcare.SchemaConfig{
+					SchemaType: "ANALYTICS",
+				},
 			},
 		}
 		streamingConfigs = append(streamingConfigs, streamingConfig)

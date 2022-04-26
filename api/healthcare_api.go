@@ -34,6 +34,9 @@ type FHIRStoreClientIAMPolicyGetCall interface {
 	Do(opts ...googleapi.CallOption) (*healthcare.Policy, error)
 }
 
+type FHIRStoreClientPatchCall interface {
+	Do(opts ...googleapi.CallOption) (*healthcare.FhirStore, error)
+}
 type FHIRStoreClientIAMPolicyCreateOrUpdateCall interface {
 	Do(opts ...googleapi.CallOption) (*healthcare.Policy, error)
 }
@@ -49,15 +52,12 @@ type FHIRStoreResourceClientGetCall interface {
 	Do(opts ...googleapi.CallOption) (*http.Response, error)
 }
 
-func BuildFHIRStoreCreateCall(projectID string, location string, datasetID string, version string, fhirStoreID string, streamingConfigs []*healthcare.StreamConfig) (*healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall, error) {
+func BuildFHIRStoreCreateCall(projectID string, location string, datasetID string, version string, fhirStoreID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresCreateCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("get client error: %v", err)
 	}
 	fhirStore := &healthcare.FhirStore{Version: version, EnableUpdateCreate: true}
-	if len(streamingConfigs) > 0 {
-		fhirStore.StreamConfigs = streamingConfigs
-	}
 	storesService := healthcareService.Projects.Locations.Datasets.FhirStores
 	parent := fmt.Sprintf("projects/%s/locations/%s/datasets/%s", projectID, location, datasetID)
 	return storesService.Create(parent, fhirStore).FhirStoreId(fhirStoreID), nil
@@ -138,6 +138,16 @@ func BuildFHIRStoreDeleteCall(projectID string, location string, datasetID strin
 	return datasetService.Delete(name), nil
 }
 
+func BuildFhirStorePatchCall(projectID string, location string, datasetID string, fhirStoreID string, fhirStore *healthcare.FhirStore) (*healthcare.ProjectsLocationsDatasetsFhirStoresPatchCall, error) {
+	healthcareService, err := healthcare.NewService(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("get client error: %v", err)
+	}
+	fhirService := healthcareService.Projects.Locations.Datasets.FhirStores
+	name := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
+	return fhirService.Patch(name, fhirStore), nil
+}
+
 func BuildFHIRStoreResourceDeleteCall(projectID string, location string, datasetID string, fhirStoreID string, resourceType string, resourceID string) (*healthcare.ProjectsLocationsDatasetsFhirStoresFhirDeleteCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
@@ -165,6 +175,9 @@ func CreateFHIRStore(fhirseStoreCreateCall FHRIStoreClientCreateCall) (*healthca
 	return fhirseStoreCreateCall.Do()
 }
 
+func PatchFHIRStore(fhirStorePatchCall FHIRStoreClientPatchCall) (*healthcare.FhirStore, error) {
+	return fhirStorePatchCall.Do()
+}
 func UpdateFHIRStoreIAMPolicy(fhirStoreCreateOrUpdateIAMPolicyCall FHIRStoreClientIAMPolicyCreateOrUpdateCall) (*healthcare.Policy, error) {
 	return fhirStoreCreateOrUpdateIAMPolicyCall.Do()
 }

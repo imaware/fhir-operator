@@ -21,6 +21,7 @@ type MockFhirCreateOrUpdateIAMPolicyCall struct{}
 type MockFhirCreateOrUpdateIAMPolicyCallBadRequest struct{}
 type MockFhirGetIAMPolicyCall struct{}
 type MockFhirGetIAMPolicyCallBadRequest struct{}
+type MockFhirPatchCall struct{}
 
 type MockFhirResourceDeleteCallBadRequest struct{}
 type MockFhirResourceDeleteCall struct{}
@@ -39,6 +40,10 @@ func (m *MockDatasetCreateCall) Do(opts ...googleapi.CallOption) (*healthcare.Op
 }
 
 func (m *MockDatastoreGetCall) Do(opts ...googleapi.CallOption) (*healthcare.Dataset, error) {
+	return nil, nil
+}
+
+func (m *MockFhirPatchCall) Do(opts ...googleapi.CallOption) (*healthcare.FhirStore, error) {
 	return nil, nil
 }
 

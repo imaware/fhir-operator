@@ -16,12 +16,24 @@ func FHIRStoreCreateFailedStatus(errorString string) string {
 	return fmt.Sprintf("Failed to create FHIR store  due to [ %v ]", errorString)
 }
 
+func FHIRStorePatchFailedStatus(errorString string) string {
+	return fmt.Sprintf("Failed to patch FHIR store due to [ %v ]", errorString)
+}
+
 func FHIRStoreDeleteFailedStatus(errorString string) string {
 	return fmt.Sprintf("Failed to delete FHIR store due to [ %v ]", errorString)
 }
 
 func GetInternalError(errorString string) string {
 	return fmt.Sprintf("Internal error: [ %v ]", errorString)
+}
+
+func FHIRStoreFailedIAMPolicy(errorString string) string {
+	return fmt.Sprintf("Failed to create and or update FHIR store iam policy due to [ %v ]", errorString)
+}
+
+func FHIRStoreFailedPatch(errorString string) string {
+	return fmt.Sprintf("Failed to update FHIR store due to [ %v ]", errorString)
 }
 
 func FHIRStoreCreatingStatus(datasetId string, fhirStoreID string) string {
