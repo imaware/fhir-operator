@@ -8,8 +8,5 @@ spec:
   fhirStoreID: ethan-fhirstore
   options:
     preventDelete: false
-    bigquerry:
-    - id: bq://imaware-test.test
-
-
-
+    bigquery:
+    - id: bq://imaware-test.test2
