@@ -55,6 +55,19 @@ spec:
                 description: datasetID is the name of the dataset the fhirstore will
                   be put in
                 type: string
+              exportOptions:
+                description: exportOptions export options to be used on the fhir store
+                properties:
+                  enableExports:
+                    description: whether to enable backup or not
+                    type: boolean
+                  frequency:
+                    description: Export frequency
+                    type: string
+                  location:
+                    description: GCS export location
+                    type: string
+                type: object
               fhirStoreID:
                 description: fhirStoreID is the name that the fhir store will be called
                 type: string
@@ -90,6 +103,8 @@ spec:
           status:
             description: FhirStoreStatus defines the observed state of FhirStore
             properties:
+              LastExported:
+                type: string
               Message:
                 type: string
               Status:
