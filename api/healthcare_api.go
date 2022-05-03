@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"google.golang.org/api/googleapi"
 	healthcare "google.golang.org/api/healthcare/v1"
@@ -28,6 +29,10 @@ type FHIRStoreClientGetCall interface {
 
 type FHIRStoreClientDeleteCall interface {
 	Do(opts ...googleapi.CallOption) (*healthcare.Empty, error)
+}
+
+type FHIRStoreClientExportCall interface {
+	Do(opts ...googleapi.CallOption) (*healthcare.Operation, error)
 }
 
 type FHIRStoreClientIAMPolicyGetCall interface {
@@ -138,6 +143,21 @@ func BuildFHIRStoreDeleteCall(projectID string, location string, datasetID strin
 	return datasetService.Delete(name), nil
 }
 
+func BuildFHIRStoreExportCall(projectID string, location string, datasetID string, fhirStoreID string, gcsURIPrefix string) (*healthcare.ProjectsLocationsDatasetsFhirStoresExportCall, error) {
+	healthcareService, err := healthcare.NewService(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("get client error: %v", err)
+	}
+	storesService := healthcareService.Projects.Locations.Datasets.FhirStores
+	parent := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
+	exportResourcesRequest := &healthcare.ExportResourcesRequest{
+		GcsDestination: &healthcare.GoogleCloudHealthcareV1FhirGcsDestination{
+			UriPrefix: gcsURIPrefix + "/" + time.Now().Format("RFC3339"),
+		},
+	}
+	return storesService.Export(parent, exportResourcesRequest), nil
+}
+
 func BuildFhirStorePatchCall(projectID string, location string, datasetID string, fhirStoreID string, fhirStore *healthcare.FhirStore) (*healthcare.ProjectsLocationsDatasetsFhirStoresPatchCall, error) {
 	healthcareService, err := healthcare.NewService(context.Background())
 	if err != nil {
@@ -200,6 +220,10 @@ func GetFHIRStoreIAMPolicy(fhirStoreGetIAMPolicyCall FHIRStoreClientIAMPolicyGet
 
 func DeleteFHIRStore(fhirStoreDeleteCall FHIRStoreClientDeleteCall) (*healthcare.Empty, error) {
 	return fhirStoreDeleteCall.Do()
+}
+
+func ExportFHIRStore(fhirStoreExportCall FHIRStoreClientExportCall) (*healthcare.Operation, error) {
+	return fhirStoreExportCall.Do()
 }
 
 func GetFHIRResource(fhirResourceGetCall FHIRStoreResourceClientGetCall) (*http.Response, error) {

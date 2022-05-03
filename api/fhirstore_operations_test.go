@@ -17,6 +17,8 @@ var (
 	mockFhirBadGetCall              = &mocks.MockFhirGetCallBadRequest{}
 	mockFhirBadDeleteCall           = &mocks.MockFhirDeleteCallBadRequest{}
 	mockFhirGoodDeleteCall          = &mocks.MockFhirDeleteCall{}
+	mockFhirGoodExportCall          = &mocks.MockFhirExportCall{}
+	mockFhirBadExportCall           = &mocks.MockFhirExportCall{}
 	mockFhirIAMPolicyGoodCreateCall = &mocks.MockFhirCreateOrUpdateIAMPolicyCall{}
 	mockFhirIAMPolicyBadCreateCall  = &mocks.MockFhirCreateOrUpdateIAMPolicyCallBadRequest{}
 	mockFhirIAMPolicyGoodGetCall    = &mocks.MockFhirGetIAMPolicyCall{}

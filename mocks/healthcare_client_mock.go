@@ -13,6 +13,7 @@ type MockDatasetGetCallBadRequest struct{}
 
 type MockFhirCreateCall struct{}
 type MockFhirDeleteCall struct{}
+type MockFhirExportCall struct{}
 type MockFhirGetCall struct{}
 type MockFhirGetCallBadRequest struct{}
 type MockFhirCreateCallBadRequest struct{}
@@ -32,6 +33,10 @@ type MockFhirResourceGetCall struct{}
 type MockFhirResourceGetCallReturnedResource struct{}
 
 func (m *MockFhirCreateCall) Do(opts ...googleapi.CallOption) (*healthcare.FhirStore, error) {
+	return nil, nil
+}
+
+func (m *MockFhirExportCall) Do(opts ...googleapi.CallOption) (*healthcare.Operation, error) {
 	return nil, nil
 }
 

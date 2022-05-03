@@ -24,6 +24,10 @@ func FHIRStoreDeleteFailedStatus(errorString string) string {
 	return fmt.Sprintf("Failed to delete FHIR store due to [ %v ]", errorString)
 }
 
+func FHIRStoreExportFailedStatus(errorString string) string {
+	return fmt.Sprintf("Failed to export FHIR store due to [ %v ]", errorString)
+}
+
 func GetInternalError(errorString string) string {
 	return fmt.Sprintf("Internal error: [ %v ]", errorString)
 }
