@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/imaware/fhir-operator/api"
 	"google.golang.org/api/healthcare/v1"
@@ -135,8 +136,14 @@ func (r *FhirStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 						result, err = createFhirStoreLoop(fhirStore, datasetGetCall, fhirStoreGetCall, fhirStoreCreateCall)
 					}
 				}
+
+				if checkExportCondition(fhirStore) {
+					result, err = exportFhirStoreLoop(fhirStore)
+				}
+
 			}
 		}
+
 		r.Status().Update(ctx, fhirStore)
 	}
 	return result, err
@@ -221,7 +228,7 @@ func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.Datas
 	return ctrl.Result{}, nil
 }
 
-func deleteFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall) (ctrl.Result, error) {
+func deleteFhirStoreLoop(fhirStore *fhirv1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall) (ctrl.Result, error) {
 	fhirStoreDeleteCall, err := api.BuildFHIRStoreDeleteCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
 	if err != nil {
 		logger.Error(err, "Failed to build Fhir store delete call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
@@ -232,6 +239,66 @@ func deleteFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.Datas
 	if err != nil {
 		logger.Error(err, "Something went wrong during FHIR store delete", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
+}
+
+func checkExportCondition(fhirStore *v1alpha1.FhirStore) bool {
+
+	// check if exports are enabled
+	if !fhirStore.Spec.ExportOptions.EnableExports {
+		return false
+	}
+
+	lastExport := fhirStore.Status.LastExported
+
+	// retry failed exports no matter the time
+	if lastExport == "FAILED" {
+		logger.V(1).Info("Failed to export %s last time, reconciling")
+		return true
+	}
+
+	longFormat := "2006-01-02 15:04:05.999999999 -0700 MST"
+	lastExportTime, err := time.Parse(longFormat, lastExport)
+	if err != nil {
+		logger.Error(err, "Status error: invalid time status")
+		return false
+	}
+
+	// convert frequency string to time object
+	frequency, err := time.ParseDuration(fhirStore.Spec.ExportOptions.Frequency)
+	if err != nil {
+		logger.Error(err, "Config error: invalid frequency parameter")
+		return false
+	}
+
+	if time.Since(lastExportTime) > frequency {
+		return true
+	}
+
+	return false
+}
+
+func exportFhirStoreLoop(fhirStore *v1alpha1.FhirStore) (ctrl.Result, error) {
+	if fhirStore == nil {
+		return ctrl.Result{}, nil
+	}
+
+	if configFhirStore == nil {
+		return ctrl.Result{}, nil
+	}
+
+	fhirStoreExportCall, err := api.BuildFHIRStoreExportCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirStore.Spec.ExportOptions.Location)
+	if err != nil {
+		logger.Error(err, "Failed to build Fhir store export call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		return ctrl.Result{}, err
+	}
+
+	err = api.ExportFhirStore(fhirStoreExportCall, fhirStore)
+	//r.Status().Update(ctx, fhirStore)
+	if err != nil {
+		logger.Error(err, "Something went wrong during FHIR store export", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }

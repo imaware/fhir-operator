@@ -1,6 +1,7 @@
 package api
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/imaware/fhir-operator/mocks"
@@ -158,5 +159,39 @@ func Test_fhir_resource_get_call(t *testing.T) {
 	_, err := GetFHIRResource(mockGetCall)
 	if err != nil {
 		t.Errorf("Failed to call mock FHIR resource get due to %v", err)
+	}
+}
+
+func TestExportFHIRStore(t *testing.T) {
+
+	type args struct {
+		fhirStoreExportCall FHIRStoreClientExportCall
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *healthcare.Operation
+		wantErr bool
+	}{
+		{
+			name: "Call ExportFHIRStore()",
+			args: args{
+				fhirStoreExportCall: &mocks.MockFhirExportCall{},
+			},
+			want:    nil,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ExportFHIRStore(tt.args.fhirStoreExportCall)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExportFHIRStore() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExportFHIRStore() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

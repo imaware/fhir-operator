@@ -36,6 +36,8 @@ type FhirStoreSpec struct {
 	Auth map[string]FhirStoreSpecAuth `json:"auth,omitempty"`
 	// options Options to be enabled on the fhir store
 	Options FhirStoreSpecOptions `json:"options,omitempty"`
+	// exportOptions export options to be used on the fhir store
+	ExportOptions FhirStoreSpecExportOptions `json:"exportOptions,omitempty"`
 }
 
 // FhirStoreSpecAuthSpec defines what service accounts can talk to the fhir API
@@ -58,12 +60,23 @@ type FhirStoreSpecOptionsBigquery struct {
 	Id string `json:"id"`
 }
 
+type FhirStoreSpecExportOptions struct {
+
+	// whether to enable backup or not
+	EnableExports bool `json:"enableExports,omitempty"`
+	// GCS export location
+	Location string `json:"location,omitempty"`
+	// Export frequency
+	Frequency string `json:"frequency,omitempty"` // XXdYYmZZs
+}
+
 // FhirStoreStatus defines the observed state of FhirStore
 type FhirStoreStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Status  string `json:"Status"`
-	Message string `json:"Message"`
+	Status       string `json:"Status"`
+	Message      string `json:"Message"`
+	LastExported string `json:"LastExported,omitempty"`
 }
 
 //+kubebuilder:object:root=true

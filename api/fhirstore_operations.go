@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
@@ -139,7 +141,7 @@ func deleteFhirStore(fhirStoreDeleteCall FHIRStoreClientDeleteCall, fhirStore *f
 			return fmt.Errorf("Delete fhirstore internal error: %v", err)
 		}
 	} else {
-		logger.Info(fmt.Sprintf("FHIR store deleted %v in dataset %v for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
+		logger.Info(fmt.Sprintf("FHIR store deleted %v in dataset %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 		return nil
 	}
 }
@@ -153,7 +155,7 @@ func datasetExists(datasetGetCall DatastoreClientGetCall, fhirStore *fhirv1alpha
 		if ok {
 			code := gcpErr.Code
 			if code == DATSET_ERROR_NOT_FOUND {
-				logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to get datastore %v for resource %v in namesapce %v. This can be due to either bad permissions or resource does not exist", fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
+				logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to get datastore %v for resource %v in namespace %v. This can be due to either bad permissions or resource does not exist", fhirStore.Spec.DatasetID, fhirStore.Name, fhirStore.Namespace))
 				fhirStore.Status.Status = FAILED
 				fhirStore.Status.Message = DatasetNotFoundOrPermissionsInvalidStatus(fhirStore.Spec.DatasetID, gcpErr)
 				return fmt.Errorf("Invalid credentials or datastore does not exist")
@@ -234,4 +236,56 @@ func GenerateFhirStoreBigQueryConfigs(bigquerryConfigs []v1alpha1.FhirStoreSpecO
 		streamingConfigs = append(streamingConfigs, streamingConfig)
 	}
 	return streamingConfigs
+}
+
+// exportFHIRResource exports the resources in the FHIR store.
+func ExportFhirStore(fhirStoreExportCall FHIRStoreClientExportCall, fhirStore *fhirv1alpha1.FhirStore) error {
+	ctx := context.Background()
+	healthcareService, err := healthcare.NewService(ctx)
+	if err != nil {
+		return fmt.Errorf("get client error: %v", err)
+	}
+
+	operationsService := healthcareService.Projects.Locations.Datasets.Operations
+	operation, err := ExportFHIRStore(fhirStoreExportCall)
+
+	if err != nil {
+		gcpErr, ok := err.(*googleapi.Error)
+		failedStatus := FHIRStoreExportFailedStatus(err.Error())
+
+		if ok {
+			logger.V(1).Error(gcpErr, fmt.Sprintf("Failed to export fhirstore %v for resource %v in namespace %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
+			fhirStore.Status.Status = FAILED
+			fhirStore.Status.Message = failedStatus
+			return fmt.Errorf(failedStatus)
+		} else {
+			fhirStore.Status.Status = FAILED
+			fhirStore.Status.Message = FHIRStoreExportFailedStatus(err.Error())
+			return fmt.Errorf(failedStatus)
+		}
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+
+			fhirStore.Status.LastExported = time.Now().String()
+			return ctx.Err()
+		case <-ticker.C:
+			newOp, err := operationsService.Get(operation.Name).Do()
+			if err != nil {
+				return fmt.Errorf("operationsService.Get(%q): %v", operation.Name, err)
+			}
+			if newOp.Done {
+				if newOp.Error != nil {
+					fhirStore.Status.LastExported = "FAILED"
+					return fmt.Errorf("export operation %q completed with error: %v", operation.Name, newOp.Error)
+				}
+				return nil
+			}
+		}
+	}
 }
