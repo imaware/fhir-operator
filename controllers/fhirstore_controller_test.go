@@ -124,7 +124,7 @@ func TestExportFhirStore(t *testing.T) {
 			},
 		},
 		Status: v1alpha1.FhirStoreStatus{
-			LastExported: "FAILED",
+			LastExported: "2006-01-02T15:04:05Z07:00",
 		},
 	}
 

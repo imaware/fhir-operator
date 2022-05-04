@@ -265,7 +265,7 @@ func ExportFhirStore(fhirStoreExportCall FHIRStoreClientExportCall, fhirStore *f
 		}
 	}
 
-	fhirStore.Status.LastExported = time.Now().String()
+	fhirStore.Status.LastExported = time.Now().Format(time.RFC3339)
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()

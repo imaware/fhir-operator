@@ -1,15 +1,15 @@
 apiVersion: fhir.imaware.com/v1alpha1
 kind: FhirStore
 metadata:
-  name: test-fhir
-  namespace: test
+  name: asper-fhirstore
+  namespace: test2
 spec:
   datasetID: test-dataset
-  fhirStoreID: test-fhirstore
+  fhirStoreID: asper-fhirstore
   exportOptions:
     enableExports: true
-    location: gs://bucket
-    frequency: 1h
+    location: gs://integration-test-fhir-op/test
+    frequency: 5m
 
 
 
