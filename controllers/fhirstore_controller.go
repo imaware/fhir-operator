@@ -162,28 +162,41 @@ func (r *FhirStoreReconciler) SetupWithManager(mgr ctrl.Manager, conf *api.Confi
 func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall, fhirStoreCreateCall api.FHRIStoreClientCreateCall) (ctrl.Result, error) {
 	logger.Info("Checking if Fhirstore should be created", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 	err := api.ReadAndOrCreateFHIRStore(datasetGetCall, fhirStoreGetCall, fhirStoreCreateCall, fhirStore)
+	result := ctrl.Result{}
+
 	if err != nil {
 		logger.Error(err, "Something went wrong during FHIR store creation", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-		return ctrl.Result{}, err
+		return result, err
 	}
+
+	if fhirStore.Spec.ExportOptions.EnableExports {
+		frequency, err := time.ParseDuration(fhirStore.Spec.ExportOptions.Frequency)
+		if err != nil {
+			logger.Error(err, "Config error: invalid frequency parameter")
+			return result, err
+		}
+		result = ctrl.Result{RequeueAfter: frequency}
+		fhirStore.Status.LastExported = fhirStore.CreationTimestamp.Format(time.RFC3339)
+	}
+
 	// create IAM policy if needed
 	if len(fhirStore.Spec.Auth) > 0 {
 		fhirStoreIAMPolicyGetCall, err := api.BuildFhirStoreGetIAMPolicyRequest(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID)
 		if err != nil {
 			logger.V(1).Error(err, "Failed to build Fhir store IAM get call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, err
+			return result, err
 		}
 		// Get the policy to make sure we dont miss anything in updating or creating policy
 		policy, err := api.ReadFHIRStoreIAMPolicy(fhirStoreIAMPolicyGetCall, fhirStore)
 		if err != nil {
 			logger.Error(err, "Something went wrong during FHIR store IAM policy read", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, nil
+			return result, nil
 		}
 		policy.Bindings = api.GenerateIAMPolicyBindings(fhirStore.Spec.Auth)
 		fhirStoreIAMPolicyCreateOrUpdateCall, err := api.BuildFhirStoreUpdateOrCreateIAMPolicyRequest(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, policy)
 		if err != nil {
 			logger.V(1).Error(err, "Failed to build Fhir store IAM update call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, err
+			return result, err
 		}
 		// create or update the policy for the fhir store
 		err = api.CreateOrUpdateFHIRStoreIAMPolicy(fhirStoreIAMPolicyCreateOrUpdateCall, fhirStore)
@@ -191,7 +204,7 @@ func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.Datas
 			logger.Error(err, "Something went wrong during FHIR store IAM policy create or update", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 			fhirStore.Status.Status = api.FAILED
 			fhirStore.Status.Message = api.FHIRStoreFailedIAMPolicy(err.Error())
-			return ctrl.Result{}, nil
+			return result, nil
 		}
 
 	}
@@ -200,14 +213,14 @@ func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.Datas
 		fhirStoreGCP, err := api.GetFHIRStore(fhirStoreGetCall)
 		if err != nil {
 			logger.Error(err, "Something went wrong during FHIR store read", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, nil
+			return result, nil
 		}
 		fhirStoreStreamingConfigs := api.GenerateFhirStoreBigQueryConfigs(fhirStore.Spec.Options.Bigquery)
 		fhirStoreGCP.StreamConfigs = fhirStoreStreamingConfigs
 		fhirStorePatchCall, err := api.BuildFhirStorePatchCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirStoreGCP)
 		if err != nil {
 			logger.V(1).Error(err, "Failed to build Fhir store patch call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-			return ctrl.Result{}, err
+			return result, err
 		}
 		// allow for updating the streamConfigs path in the resource
 		fhirStorePatchCall.UpdateMask("streamConfigs")
@@ -218,14 +231,14 @@ func createFhirStoreLoop(fhirStore *v1alpha1.FhirStore, datasetGetCall api.Datas
 			logger.Error(err, "Something went wrong during FHIR store IAM policy create or update", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
 			fhirStore.Status.Status = api.FAILED
 			fhirStore.Status.Message = api.FHIRStoreFailedPatch(err.Error())
-			return ctrl.Result{}, nil
+			return result, nil
 		}
 	}
 	// if we are at this point the fhir store is up and running
 	logger.Info(fmt.Sprintf("Fhirstore %v created for resource %v in namesapce %v", fhirStore.Spec.FhirStoreID, fhirStore.Name, fhirStore.Namespace))
 	fhirStore.Status.Status = api.CREATED
 	fhirStore.Status.Message = api.FHIRStoreCreatedStatus(fhirStore.Spec.FhirStoreID)
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func deleteFhirStoreLoop(fhirStore *fhirv1alpha1.FhirStore, datasetGetCall api.DatastoreClientGetCall, fhirStoreGetCall api.FHIRStoreClientGetCall) (ctrl.Result, error) {
@@ -293,6 +306,12 @@ func exportFhirStoreLoop(fhirStore *v1alpha1.FhirStore) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
+	frequency, err := time.ParseDuration(fhirStore.Spec.ExportOptions.Frequency)
+	if err != nil {
+		logger.Error(err, "Config error: invalid frequency parameter")
+		return ctrl.Result{}, nil
+	}
+
 	if configFhirStore == nil {
 		return ctrl.Result{}, nil
 	}
@@ -300,14 +319,16 @@ func exportFhirStoreLoop(fhirStore *v1alpha1.FhirStore) (ctrl.Result, error) {
 	fhirStoreExportCall, err := api.BuildFHIRStoreExportCall(configFhirStore.GCPProject, configFhirStore.GCPLocation, fhirStore.Spec.DatasetID, fhirStore.Spec.FhirStoreID, fhirStore.Spec.ExportOptions.Location)
 	if err != nil {
 		logger.Error(err, "Failed to build Fhir store export call", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: frequency}, err
+
 	}
 
 	err = api.ExportFhirStore(fhirStoreExportCall, fhirStore)
-	//r.Status().Update(ctx, fhirStore)
 	if err != nil {
 		logger.Error(err, "Something went wrong during FHIR store export", "fhirStoreID", fhirStore.Spec.FhirStoreID, "datasetID", fhirStore.Spec.DatasetID, "fhireStoreObjectName", fhirStore.Name)
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: frequency}, err
+
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: frequency}, nil
+
 }
