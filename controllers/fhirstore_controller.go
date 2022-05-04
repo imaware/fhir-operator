@@ -258,6 +258,11 @@ func checkExportCondition(fhirStore *v1alpha1.FhirStore) bool {
 		return true
 	}
 
+	if lastExport == "" {
+		logger.V(1).Info("Fhir store has never been exporting, reconciling")
+		return true
+	}
+
 	longFormat := "2006-01-02 15:04:05.999999999 -0700 MST"
 	lastExportTime, err := time.Parse(longFormat, lastExport)
 	if err != nil {
