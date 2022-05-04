@@ -14,6 +14,10 @@ spec:
     listKind: FhirResourceList
     plural: fhirresources
     singular: fhirresource
+    shortNames:
+    - fr
+    - fresource
+    - fresources
   scope: Namespaced
   versions:
   - name: v1alpha1

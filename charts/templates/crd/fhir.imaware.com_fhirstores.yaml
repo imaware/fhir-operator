@@ -17,6 +17,7 @@ spec:
     shortNames:
     - fs
     - fstores
+    - fstore
   scope: Namespaced
   versions:
   - name: v1alpha1

@@ -265,14 +265,13 @@ func ExportFhirStore(fhirStoreExportCall FHIRStoreClientExportCall, fhirStore *f
 		}
 	}
 
-	ticker := time.NewTicker(1 * time.Second)
+	fhirStore.Status.LastExported = time.Now().String()
 
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-
-			fhirStore.Status.LastExported = time.Now().String()
 			return ctx.Err()
 		case <-ticker.C:
 			newOp, err := operationsService.Get(operation.Name).Do()

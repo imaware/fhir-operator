@@ -250,6 +250,8 @@ func checkExportCondition(fhirStore *v1alpha1.FhirStore) bool {
 		return false
 	}
 
+	logger.V(2).Info("Checking %s for export", fhirStore.Name)
+
 	lastExport := fhirStore.Status.LastExported
 
 	// retry failed exports no matter the time
@@ -260,6 +262,7 @@ func checkExportCondition(fhirStore *v1alpha1.FhirStore) bool {
 
 	if lastExport == "" {
 		logger.V(1).Info("Fhir store has never been exporting, reconciling")
+		fhirStore.Status.LastExported = time.Now().String()
 		return true
 	}
 
@@ -278,9 +281,11 @@ func checkExportCondition(fhirStore *v1alpha1.FhirStore) bool {
 	}
 
 	if time.Since(lastExportTime) > frequency {
+		logger.V(1).Info("Export triggered for %s", fhirStore.Name)
 		return true
 	}
 
+	logger.V(2).Info("No export triggered for %s", fhirStore.Name)
 	return false
 }
 
