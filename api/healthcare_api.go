@@ -150,9 +150,10 @@ func BuildFHIRStoreExportCall(projectID string, location string, datasetID strin
 	}
 	storesService := healthcareService.Projects.Locations.Datasets.FhirStores
 	parent := fmt.Sprintf("projects/%s/locations/%s/datasets/%s/fhirStores/%s", projectID, location, datasetID, fhirStoreID)
+	exportTime := time.Now().Format(time.RFC3339)
 	exportResourcesRequest := &healthcare.ExportResourcesRequest{
 		GcsDestination: &healthcare.GoogleCloudHealthcareV1FhirGcsDestination{
-			UriPrefix: gcsURIPrefix + "/" + time.Now().Format("RFC3339"),
+			UriPrefix: gcsURIPrefix + "/" + exportTime,
 		},
 	}
 	return storesService.Export(parent, exportResourcesRequest), nil
