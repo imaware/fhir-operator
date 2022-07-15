@@ -53,7 +53,7 @@ jobs:
       - name: Sentry Release
         uses: getsentry/action-release@v1.1.6
         with:
-          projects: ${{ env.REGISTRY }}
+          projects: fhir-operator
           environment: prod
           version: ${{ github.ref }}
           ignore_missing: true
