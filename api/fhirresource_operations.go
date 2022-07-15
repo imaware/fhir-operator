@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 
 	"github.com/imaware/fhir-operator/api/utils"
+	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -120,4 +121,17 @@ func fhirResourceExists(fhirStoreResourceGetCall FHIRStoreResourceClientGetCall,
 	fhirResourceLogger.V(1).Info(fmt.Sprintf("Found fhir resource %v in namespace %v", fhirStoreResource.Name, fhirStoreResource.Namespace))
 	return true, nil
 
+}
+
+func IsFhirResourceToBeUpdatedOrCreated(fhirResource *v1alpha1.FhirResource) bool {
+	toBeUpdateOrCreated := false
+	if fhirResource.Annotations != nil {
+		if _, ok := fhirResource.Annotations["kubectl.kubernetes.io/last-applied-configuration"]; ok {
+			toBeUpdateOrCreated = true
+		}
+
+	} else if fhirResource.Status.Status != CREATED {
+		toBeUpdateOrCreated = true
+	}
+	return toBeUpdateOrCreated
 }
