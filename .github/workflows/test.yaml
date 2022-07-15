@@ -12,12 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0
+    - id: "auth"
+      name: "Authenticate to Google Cloud"
+      uses: "google-github-actions/auth@v0"
       with:
-        project_id: imaware-test # project for test data
-        service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        export_default_credentials: true
+        workload_identity_provider: ${{ secrets.IMAWARE_TEST_WIP }}
+        service_account: gh-actions-terraform-develop@imaware-test.iam.gserviceaccount.com
+    # Setup gcloud CLI
+    - name: Set up GCP Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
