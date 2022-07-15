@@ -9,6 +9,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/getsentry/sentry-go"
 	"github.com/imaware/fhir-operator/api"
 	"github.com/imaware/fhir-operator/api/utils"
 	"github.com/imaware/fhir-operator/api/v1alpha1"
@@ -62,20 +63,24 @@ func processEvent(consumerConfig *ConsumerConfig, msg *pubsub.Message) {
 			if len(downloadedBytes) > 0 {
 				fhirResource, err := buildFhirResource(consumerConfig, gcsEvent, string(downloadedBytes))
 				if err != nil {
+					sentry.CaptureException(err)
 					consumerLogger.Error(err, fmt.Sprintf("Failed to build fhir resource for subscription %s", consumerConfig.SubscriptionName))
-				}
-				// object has been created or updated
-				// create the fhir resource manifest
-				err = consumerConfig.K8sClient.Create(context.TODO(), fhirResource)
-				if err != nil {
-					// perform update instead
-					if errors.IsAlreadyExists(err) {
-						err = consumerConfig.K8sClient.Update(context.TODO(), fhirResource)
-						if err != nil {
-							consumerLogger.Error(err, fmt.Sprintf("Failed to update fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+				} else {
+					// object has been created or updated
+					// create the fhir resource manifest
+					err = consumerConfig.K8sClient.Create(context.TODO(), fhirResource)
+					if err != nil {
+						// perform update instead
+						if errors.IsAlreadyExists(err) {
+							err = consumerConfig.K8sClient.Update(context.TODO(), fhirResource)
+							if err != nil {
+								sentry.CaptureException(err)
+								consumerLogger.Error(err, fmt.Sprintf("Failed to update fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+							}
+						} else {
+							sentry.CaptureException(err)
+							consumerLogger.Error(err, fmt.Sprintf("Failed to create fhir resource %s for subscription %s in namesapce %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
 						}
-					} else {
-						consumerLogger.Error(err, fmt.Sprintf("Failed to create fhir resource %s for subscription %s in namesapce %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
 					}
 				}
 			}
