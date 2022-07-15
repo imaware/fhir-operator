@@ -51,6 +51,15 @@ env:
   GCP_LOCATION: ""
   # -- env var for enabling debug logging
   DEBUG_ENABLED: "false"
+  # -- env var for enabling sentry
+  SENTRY_ENABLED: "fasle"
+  # -- env var for setting sentry DSN for traces
+  SENTRY_DSN: ""
+  # -- env var to specify the sample rate for sentry
+  SENTRY_SAMPLE_RATE: "1.0"
+  # -- env var for specifying the environment the fhir operator is deployed in
+  ENVIRONMENT: ""
+
 
 # -- Additional command arguments that can be passed to controller
 commandFlags: []

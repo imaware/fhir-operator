@@ -27,6 +27,8 @@ spec:
       - env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /var/secrets/google/key.json
+          - name: RELEASE_TAG 
+            value: {{ .Values.image.tag }}
           {{- range $key, $val := required "Please make sure the env is set with GCP_LOCATION, GCP_PROJECT" .Values.env }}
           - name: {{ $key }}
             value: {{ $val | quote }}

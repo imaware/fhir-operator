@@ -11,13 +11,21 @@ A Helm chart for Kubernetes
 | affinity | object | `{}` | Requirements for pods to run on node |
 | commandFlags | list | `[]` | Additional command arguments that can be passed to controller |
 | env.DEBUG_ENABLED | string | `"false"` | env var for enabling debug logging |
+| env.ENVIRONMENT | string | `""` | env var for specifying the environment the fhir operator is deployed in |
 | env.GCP_LOCATION | string | `""` | (REQUIRED) env var that points to the GCP location |
 | env.GCP_PROJECT | string | `""` | (REQUIRED) env var that points to the project in GCP |
+| env.SENTRY_DSN | string | `""` | env var for setting sentry DSN for traces |
+| env.SENTRY_ENABLED | string | `"fasle"` | env var for enabling sentry |
+| env.SENTRY_SAMPLE_RATE | string | `"1.0"` | env var to specify the sample rate for sentry |
 | fullnameOverride | string | `""` |  |
 | iamServiceAccount.create | bool | `true` | If running in a cluster with Anthos config connector will create GCP IAM resources |
 | iamServiceAccount.polices[0] | object | `{"project":"","role":"roles/healthcare.fhirResourceEditor"}` | (REQUIRED) role for the fhir operator to edit fhir resources in the project. Project must be set to the GCP project in use. |
 | iamServiceAccount.polices[1] | object | `{"project":"","role":"roles/healthcare.fhirStoreAdmin"}` | (REQUIRED) role for the fhir operator to edit manage fhir stores in the project. Project must be set to the GCP project in use. |
 | iamServiceAccount.polices[2] | object | `{"role":"roles/iam.workloadIdentityUser"}` | (REQUIRED) role for the fhir operator use workload identity |
+| iamServiceAccount.polices[3].project | string | `""` |  |
+| iamServiceAccount.polices[3].role | string | `"roles/storage.admin"` |  |
+| iamServiceAccount.polices[4].project | string | `""` |  |
+| iamServiceAccount.polices[4].role | string | `"roles/pubsub.admin"` |  |
 | iamServiceAccount.project | string | `""` | (REQUIRED) GCP project |
 | image.pullPolicy | string | `"Always"` | ImagePullPolicy settings |
 | image.repository | string | `"gcr.io/imaware-test/fhir-operator"` | Repository hosting the image |

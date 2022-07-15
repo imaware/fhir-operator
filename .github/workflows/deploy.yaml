@@ -50,6 +50,16 @@ jobs:
           export TAG=`echo $GITHUB_REF | awk -F/ '{print $NF}'`
           echo $TAG
           docker build -t "$REGISTRY"/fhir-operator:"$TAG" .
+      - name: Sentry Release
+        uses: getsentry/action-release@v1.1.6
+        with:
+          projects: ${{ env.REGISTRY }}
+          environment: prod
+          version: ${{ github.ref }}
+          ignore_missing: true
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: imaware
       # Push the Docker image to Google Container Registry
       - name: Publish
         run: |
