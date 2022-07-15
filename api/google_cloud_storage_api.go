@@ -41,7 +41,7 @@ func (c *GCSClient) DownLoadBucketObject(objectName string, bucketHandle *storag
 	return fhirResourceData, nil
 }
 
-// Returns a GCS storage bucket handler to interact with
+// Returns a GCS storage bucket handler to interact with gcp
 func (c *GCSClient) GetBucketHandle(bucketName string) *storage.BucketHandle {
 	return c.StorageClient.Bucket(bucketName)
 }
