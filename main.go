@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -35,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/imaware/fhir-operator/api"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
 	"github.com/imaware/fhir-operator/controllers"
@@ -75,6 +77,29 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	if config.SentryEnabled {
+		err := sentry.Init(sentry.ClientOptions{
+			// Either set your DSN here or set the SENTRY_DSN environment variable.
+			Dsn: config.SentryDSN,
+			// Either set environment and release here or set the SENTRY_ENVIRONMENT
+			// and SENTRY_RELEASE environment variables.
+			Environment: config.Environment,
+			Release:     config.ReleaseTag,
+			// Enable printing of SDK debug messages.
+			// Useful when getting started or trying to figure something out.
+			Debug: config.DebugEnabled,
+			// Set TracesSampleRate to 1.0 to capture 100%
+			// of transactions for performance monitoring.
+			// We recommend adjusting this value in production,
+			TracesSampleRate: config.SentrySampleRate,
+		})
+		if err != nil {
+			setupLog.Error(err, "sentry.Init")
+		}
+		// Flush buffered events before the program terminates.
+		// Set the timeout to the maximum duration the program can afford to wait.
+		defer sentry.Flush(2 * time.Second)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -115,7 +140,9 @@ func main() {
 		os.Exit(1)
 	}
 	apiClientPubsub := &api.GCPPUBClient{PubsubClient: pubsubClient}
+
 	apiClientStorage := &api.GCSClient{StorageClient: storageClient}
+
 	if err = (&controllers.FhirGCSConnectorReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
