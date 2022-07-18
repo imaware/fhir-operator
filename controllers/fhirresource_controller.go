@@ -123,7 +123,11 @@ func (r *FhirResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirresource resource %v", fhirResource.Name))
 					err = updateError
 				} else {
-					if api.IsFhirResourceToBeUpdatedOrCreated(fhirResource) {
+					toBeUpdated, toBeUpdatedErr := api.IsFhirResourceToBeUpdatedOrCreated(fhirResource)
+					if err != nil {
+						fhirResourceLogger.Error(toBeUpdatedErr, fmt.Sprintf("Failed check if fhir resource is to be updated"))
+					}
+					if toBeUpdated {
 						result, err = createOrUpdateFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
 					}
 				}
@@ -234,8 +238,10 @@ func createOrUpdateFhirResourceLoop(fhirStore *v1alpha1.FhirStore, fhirResource 
 		fhirResourceLogger.Error(err, "Something went wrong during creation", "fhirResource", fhirResource.Name, "namesapce", fhirResource.Namespace)
 		return ctrl.Result{}, nil
 	} else if !enqueu {
+		fhirResourceLogger.Info("Waiting on parent object for fhir resource", "fhirResource", fhirResource.Name, "namespace", fhirResource.Namespace)
 		return ctrl.Result{}, nil
 	} else {
+		fhirResourceLogger.Info("Created or updated fhirResource", "fhirResource", fhirResource.Name, "namespace", fhirResource.Namespace)
 		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
 	}
 }
