@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cloud.google.com/go/pubsub"
@@ -72,10 +73,18 @@ func processEvent(consumerConfig *ConsumerConfig, msg *pubsub.Message) {
 					if err != nil {
 						// perform update instead
 						if errors.IsAlreadyExists(err) {
-							err = consumerConfig.K8sClient.Update(context.TODO(), fhirResource)
-							if err != nil {
-								sentry.CaptureException(err)
-								consumerLogger.Error(err, fmt.Sprintf("Failed to update fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+							existingFhirResource := &v1alpha1.FhirResource{}
+							getErr := consumerConfig.K8sClient.Get(context.TODO(), types.NamespacedName{Namespace: fhirResource.Namespace, Name: fhirResource.Name}, existingFhirResource)
+							if getErr != nil {
+								sentry.CaptureException(getErr)
+								consumerLogger.Error(getErr, fmt.Sprintf("Failed to get fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+							} else {
+								existingFhirResource.Spec = fhirResource.Spec
+								err = consumerConfig.K8sClient.Update(context.TODO(), existingFhirResource)
+								if err != nil {
+									sentry.CaptureException(err)
+									consumerLogger.Error(err, fmt.Sprintf("Failed to update fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+								}
 							}
 						} else {
 							sentry.CaptureException(err)
