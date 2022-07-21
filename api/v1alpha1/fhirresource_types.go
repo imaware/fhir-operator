@@ -46,8 +46,9 @@ type FhirResourceSpec struct {
 type FhirResourceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Status  string `json:"Status"`
-	Message string `json:"Message"`
+	Status                      string `json:"Status"`
+	Message                     string `json:"Message"`
+	LastObservedResourceVersion string `json:"LastObserveredResourceVerison"`
 }
 
 //+kubebuilder:object:root=true

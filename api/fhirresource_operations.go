@@ -1,11 +1,9 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/imaware/fhir-operator/api/utils"
 	"github.com/imaware/fhir-operator/api/v1alpha1"
 	fhirv1alpha1 "github.com/imaware/fhir-operator/api/v1alpha1"
@@ -88,6 +86,7 @@ func CreateOrUpdateFHIRResource(fhirStoreResourceUpdateCall FHIRStoreResourceCli
 	fhirResourceLogger.V(1).Info(fmt.Sprintf("Created or updated fhir resource %v in namespace %v", fhirStoreResource.Name, fhirStoreResource.Namespace))
 	fhirStoreResource.Status.Status = CREATED
 	fhirStoreResource.Status.Message = FHIRStoreResourceCreatedorUpdatedStatus()
+	fhirStoreResource.Status.LastObservedResourceVersion = fhirStoreResource.ResourceVersion
 	return false, nil
 }
 
@@ -125,26 +124,10 @@ func fhirResourceExists(fhirStoreResourceGetCall FHIRStoreResourceClientGetCall,
 
 }
 
-func IsFhirResourceToBeUpdatedOrCreated(fhirResource *v1alpha1.FhirResource) (bool, error) {
+func IsFhirResourceToBeUpdatedOrCreated(fhirResource *v1alpha1.FhirResource) bool {
 	toBeUpdateOrCreated := false
-	if fhirResource.Annotations != nil {
-		if lastApplied, ok := fhirResource.Annotations["kubectl.kubernetes.io/last-applied-configuration"]; ok {
-			// compare the dif
-			lastAppliedfhirResource := v1alpha1.FhirResource{}
-			if err := json.Unmarshal([]byte(lastApplied), &lastAppliedfhirResource); err != nil {
-				// do error check
-				sentry.CaptureException(err)
-				return true, err
-			} else {
-				if fhirResource.Spec != lastAppliedfhirResource.Spec {
-					toBeUpdateOrCreated = true
-				}
-			}
-		}
-
-	}
-	if fhirResource.Status.Status != CREATED {
+	if fhirResource.Status.LastObservedResourceVersion == "" || fhirResource.Status.LastObservedResourceVersion != fhirResource.ResourceVersion || fhirResource.Status.Status != CREATED {
 		toBeUpdateOrCreated = true
 	}
-	return toBeUpdateOrCreated, nil
+	return toBeUpdateOrCreated
 }

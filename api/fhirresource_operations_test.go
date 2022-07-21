@@ -57,31 +57,14 @@ func Test_create_or_update_failed_fhir_resource(t *testing.T) {
 	}
 }
 
-func Test_fhir_resrouce_is_to_be_updated(t *testing.T) {
-	var fhirResource = &v1alpha1.FhirResource{}
-	var expected = true
-	toBeUpdated, err := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
-	if err != nil {
-		t.Errorf("expected no error received %v", err)
-	}
-	if expected != toBeUpdated {
-		t.Errorf("expected boolean %t, got %t", expected, toBeUpdated)
-	}
-
-}
-
 func Test_no_update_same_no_major_diff(t *testing.T) {
-	var representation = `{"foo":"bar"}`
-	var lastApplied = `{"apiVersion":"fhir.imaware.com/v1alpha1","kind":"FhirResource","metadata":{"annotations":{},"name":"codesystem-0a510f81-c132-4b22-958c-6351fa14068d","namespace":"imaware-dev"},"spec":{"representation":"{\"foo\":\"bar\"}","resourceType":"CodeSystem","selector":{"name":"imaware-dev-store"}}}`
+	var representation = `{"bar":"bar"}`
 	var fhirResource = generateTestFhirResource("codesystem-0a510f81-c132-4b22-958c-6351fa14068d", "imaware-dev-store", representation, "CodeSystem")
-	fhirResource.Annotations = map[string]string{
-		"kubectl.kubernetes.io/last-applied-configuration": lastApplied,
-	}
+	fhirResource.ResourceVersion = "foo"
+	fhirResource.Status.LastObservedResourceVersion = "foo"
+	fhirResource.Status.Status = CREATED
 	var expected = false
-	toBeUpdated, err := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
-	if err != nil {
-		t.Errorf("expected no error received %v", err)
-	}
+	toBeUpdated := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
 	if expected != toBeUpdated {
 		t.Errorf("expected boolean %t, got %t", expected, toBeUpdated)
 	}
@@ -90,16 +73,12 @@ func Test_no_update_same_no_major_diff(t *testing.T) {
 
 func Test_update_major_diff(t *testing.T) {
 	var representation = `{"bar":"bar"}`
-	var lastApplied = `{"apiVersion":"fhir.imaware.com/v1alpha1","kind":"FhirResource","metadata":{"annotations":{},"name":"codesystem-0a510f81-c132-4b22-958c-6351fa14068d","namespace":"imaware-dev"},"spec":{"representation":"{\"foo\":\"bar\"}","resourceType":"CodeSystem","selector":{"name":"imaware-dev-store"}}}`
 	var fhirResource = generateTestFhirResource("codesystem-0a510f81-c132-4b22-958c-6351fa14068d", "imaware-dev-store", representation, "CodeSystem")
-	fhirResource.Annotations = map[string]string{
-		"kubectl.kubernetes.io/last-applied-configuration": lastApplied,
-	}
+	fhirResource.ResourceVersion = "foo"
+	fhirResource.Status.LastObservedResourceVersion = "bar"
+	fhirResource.Status.Status = CREATED
 	var expected = true
-	toBeUpdated, err := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
-	if err != nil {
-		t.Errorf("expected no error received %v", err)
-	}
+	toBeUpdated := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
 	if expected != toBeUpdated {
 		t.Errorf("expected boolean %t, got %t", expected, toBeUpdated)
 	}
@@ -109,31 +88,11 @@ func Test_fhir_resrouce_is_to_not_be_updated_created_status(t *testing.T) {
 	var fhirResource = &v1alpha1.FhirResource{}
 	fhirResource.Status.Status = CREATED
 	var expected = false
-	toBeUpdated, err := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
-	if err != nil {
-		t.Errorf("expected no error received %v", err)
-	}
+	toBeUpdated := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
 	if expected != toBeUpdated {
 		t.Errorf("expected boolean %t, got %t", expected, toBeUpdated)
 	}
 
-}
-
-func Test_fhir_resource_bad_json(t *testing.T) {
-	var representation = `{"bar":"bar"}`
-	var lastApplied = "bad_json"
-	var fhirResource = generateTestFhirResource("codesystem-0a510f81-c132-4b22-958c-6351fa14068d", "imaware-dev-store", representation, "CodeSystem")
-	fhirResource.Annotations = map[string]string{
-		"kubectl.kubernetes.io/last-applied-configuration": lastApplied,
-	}
-	var expected = true
-	toBeUpdated, err := IsFhirResourceToBeUpdatedOrCreated(fhirResource)
-	if err == nil {
-		t.Errorf("expected error received no error")
-	}
-	if expected != toBeUpdated {
-		t.Errorf("expected boolean %t, got %t", expected, toBeUpdated)
-	}
 }
 
 func generateTestFhirResource(name string, selector string, jsonRepresentation string, resourceType string) *v1alpha1.FhirResource {

@@ -123,10 +123,7 @@ func (r *FhirResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					fhirResourceLogger.V(1).Error(err, fmt.Sprintf("Failed to add finalizer for fhirresource resource %v", fhirResource.Name))
 					err = updateError
 				} else {
-					toBeUpdated, toBeUpdatedErr := api.IsFhirResourceToBeUpdatedOrCreated(fhirResource)
-					if err != nil {
-						fhirResourceLogger.Error(toBeUpdatedErr, fmt.Sprintf("Failed check if fhir resource is to be updated"))
-					}
+					toBeUpdated := api.IsFhirResourceToBeUpdatedOrCreated(fhirResource)
 					if toBeUpdated {
 						result, err = createOrUpdateFhirResourceLoop(fhirStore, fhirResource, fhirResourceID)
 					}
