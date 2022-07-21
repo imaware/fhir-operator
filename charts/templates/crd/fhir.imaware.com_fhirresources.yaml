@@ -75,7 +75,6 @@ spec:
                   this file'
                 type: string
             required:
-            - LastObserveredResourceVerison
             - Message
             - Status
             type: object
