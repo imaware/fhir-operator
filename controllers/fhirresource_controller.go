@@ -239,9 +239,9 @@ func createOrUpdateFhirResourceLoop(fhirStore *v1alpha1.FhirStore, fhirResource 
 		return ctrl.Result{}, nil
 	} else if !enqueu {
 		fhirResourceLogger.Info("Waiting on parent object for fhir resource", "fhirResource", fhirResource.Name, "namespace", fhirResource.Namespace)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
 	} else {
 		fhirResourceLogger.Info("Created or updated fhirResource", "fhirResource", fhirResource.Name, "namespace", fhirResource.Namespace)
-		return ctrl.Result{RequeueAfter: pendingResourceDuration}, nil
+		return ctrl.Result{}, nil
 	}
 }

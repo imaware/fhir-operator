@@ -73,45 +73,49 @@ func processEvent(consumerConfig *ConsumerConfig, msg *pubsub.Message) {
 					if err != nil {
 						// perform update instead
 						if errors.IsAlreadyExists(err) {
-							existingFhirResource := &v1alpha1.FhirResource{}
-							getErr := consumerConfig.K8sClient.Get(context.TODO(), types.NamespacedName{Namespace: fhirResource.Namespace, Name: fhirResource.Name}, existingFhirResource)
-							if getErr != nil {
-								sentry.CaptureException(getErr)
-								consumerLogger.Error(getErr, fmt.Sprintf("Failed to get fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
-							} else {
-								existingFhirResource.Spec = fhirResource.Spec
-								err = consumerConfig.K8sClient.Update(context.TODO(), existingFhirResource)
-								if err != nil {
-									sentry.CaptureException(err)
-									consumerLogger.Error(err, fmt.Sprintf("Failed to update fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+							retry := 0
+							updated := false
+							for retry <= 10 && !updated {
+								existingFhirResource := &v1alpha1.FhirResource{}
+								getErr := consumerConfig.K8sClient.Get(context.TODO(), types.NamespacedName{Namespace: fhirResource.Namespace, Name: fhirResource.Name}, existingFhirResource)
+								if getErr != nil {
+									sentry.CaptureException(getErr)
+									consumerLogger.Error(getErr, fmt.Sprintf("Failed to get fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+								} else {
+									existingFhirResource.Spec = fhirResource.Spec
+									err = consumerConfig.K8sClient.Update(context.TODO(), existingFhirResource)
+									if err != nil {
+										sentry.CaptureException(err)
+										consumerLogger.Error(err, fmt.Sprintf("Failed to update fhir resource %s for subscription %s in namespace %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
+									} else {
+										updated = true
+									}
 								}
+								retry++
 							}
-						} else {
-							sentry.CaptureException(err)
-							consumerLogger.Error(err, fmt.Sprintf("Failed to create fhir resource %s for subscription %s in namesapce %s", fhirResource.Name, consumerConfig.SubscriptionName, fhirResource.Namespace))
 						}
 					}
 				}
+				// Event is to delete a resource
+			} else if gcsEvent.EventType == utils.EVENT_TYPE_DELETE {
+				// name of object in bucket correlates to name of resource
+				resourceName := utils.GetBucketObjectFileName(gcsEvent.ObjectId)
+				fhirResourceToDelete := &v1alpha1.FhirResource{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: consumerConfig.Namespace,
+					},
+				}
+				err = consumerConfig.K8sClient.Delete(context.TODO(), fhirResourceToDelete)
+				if err != nil {
+					if !errors.IsNotFound(err) {
+						consumerLogger.Info(fmt.Sprintf("Fhir resource %s in namespace %s for subscription %s does not exist", fhirResourceToDelete.Name, fhirResourceToDelete.Namespace, consumerConfig.SubscriptionName))
+					}
+				}
 			}
-		}
-		// Event is to delete a resource
-	} else if gcsEvent.EventType == utils.EVENT_TYPE_DELETE {
-		// name of object in bucket correlates to name of resource
-		resourceName := utils.GetBucketObjectFileName(gcsEvent.ObjectId)
-		fhirResourceToDelete := &v1alpha1.FhirResource{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      resourceName,
-				Namespace: consumerConfig.Namespace,
-			},
-		}
-		err = consumerConfig.K8sClient.Delete(context.TODO(), fhirResourceToDelete)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				consumerLogger.Info(fmt.Sprintf("Fhir resource %s in namespace %s for subscription %s does not exist", fhirResourceToDelete.Name, fhirResourceToDelete.Namespace, consumerConfig.SubscriptionName))
-			}
+
 		}
 	}
-
 }
 
 // Build the fhir resource based on what was received from the pub sub event
@@ -131,5 +135,4 @@ func buildFhirResource(consumerConfig *ConsumerConfig, gcsEvent *utils.GCSEvent,
 	// sprintf here is janky TODO something better
 	fhirResource := utils.GenerateFhirResourceManifest(consumerConfig.FhirStoreSelector, consumerConfig.Namespace, resourceName, fhirRepresentation, fmt.Sprintf("%v", fhirResourceRepresentationMap[utils.RESOURCE_TYPE]))
 	return fhirResource, nil
-
 }
