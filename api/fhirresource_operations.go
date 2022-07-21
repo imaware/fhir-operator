@@ -142,7 +142,8 @@ func IsFhirResourceToBeUpdatedOrCreated(fhirResource *v1alpha1.FhirResource) (bo
 			}
 		}
 
-	} else if fhirResource.Status.Status != CREATED {
+	}
+	if fhirResource.Status.Status != CREATED {
 		toBeUpdateOrCreated = true
 	}
 	return toBeUpdateOrCreated, nil
