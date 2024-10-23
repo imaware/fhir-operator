@@ -8,7 +8,7 @@ require (
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/googleapis/gax-go/v2 v2.1.1
 	google.golang.org/api v0.69.0
-	k8s.io/apimachinery v0.23.4
-	k8s.io/client-go v0.23.4
+	k8s.io/apimachinery v0.31.2
+	k8s.io/client-go v0.31.1
 	sigs.k8s.io/controller-runtime v0.11.1
 )
